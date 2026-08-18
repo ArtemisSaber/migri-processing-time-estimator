@@ -1,0 +1,11 @@
+node_modules/
+.next/
+.npm-cache/
+.wrangler/
+out/
+*.log
+*.tsbuildinfo
+.DS_Store
+data/estimates.json
+data/source/*.json.gz
+data/source/*.sync.json

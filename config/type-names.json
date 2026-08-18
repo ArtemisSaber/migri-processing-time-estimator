@@ -1,0 +1,744 @@
+{
+  "hierarchy": {
+    "21205": {
+      "name": "Residence Permit",
+      "children": {
+        "59": {
+          "name": "First residence permit to Finland",
+          "children": {
+            "1": {
+              "name": "Family",
+              "children": {
+                "125": {
+                  "name": "Spouse of a Finnish citizen",
+                  "children": {}
+                },
+                "126": {
+                  "name": "Child of a Finnish citizen",
+                  "children": {}
+                },
+                "127": {
+                  "name": "Guardian of a Finnish citizen",
+                  "children": {}
+                },
+                "128": {
+                  "name": "Other relative of a Finnish citizen",
+                  "children": {}
+                },
+                "129": {
+                  "name": "Spouse of a person granted int. protection",
+                  "children": {}
+                },
+                "130": {
+                  "name": "Child of a person granted int. protection",
+                  "children": {}
+                },
+                "131": {
+                  "name": "Other relative of a person granted int. protection",
+                  "children": {}
+                },
+                "132": {
+                  "name": "Guardian of a person granted int. protection",
+                  "children": {}
+                },
+                "133": {
+                  "name": "Spouse of other foreign national",
+                  "children": {}
+                },
+                "134": {
+                  "name": "Child of other foreign national",
+                  "children": {}
+                },
+                "135": {
+                  "name": "Guardian of other foreign national",
+                  "children": {}
+                },
+                "10000139": {
+                  "name": "Other relative of other foreign national",
+                  "children": {}
+                }
+              }
+            },
+            "2": {
+              "name": "Work",
+              "children": {
+                "10": {
+                  "name": "Entrepreneur",
+                  "children": {}
+                },
+                "105": {
+                  "name": "Residence permit for an employed person",
+                  "children": {}
+                },
+                "106": {
+                  "name": "Scientific research",
+                  "children": {}
+                },
+                "108": {
+                  "name": "Internship",
+                  "children": {}
+                },
+                "111": {
+                  "name": "Sports and coaching",
+                  "children": {}
+                },
+                "232": {
+                  "name": "Specialist",
+                  "children": {}
+                },
+                "2620": {
+                  "name": "Other work",
+                  "children": {}
+                },
+                "424003": {
+                  "name": "Specialist, Blue Card",
+                  "children": {}
+                },
+                "452002": {
+                  "name": "Other trainee",
+                  "children": {}
+                },
+                "454001": {
+                  "name": "National researcher",
+                  "children": {}
+                },
+                "455002": {
+                  "name": "Degree or research completed in Finland",
+                  "children": {}
+                },
+                "488002": {
+                  "name": "Seasonal work",
+                  "children": {}
+                },
+                "488004": {
+                  "name": "Seasonal work requiring a partial decision",
+                  "children": {}
+                },
+                "488006": {
+                  "name": "Intra-corporate transfer",
+                  "children": {}
+                },
+                "488008": {
+                  "name": "Mobile intra-corporate transfer",
+                  "children": {}
+                },
+                "488010": {
+                  "name": "Start-up entrepreneur",
+                  "children": {}
+                },
+                "488019": {
+                  "name": "Volunteering",
+                  "children": {}
+                }
+              }
+            },
+            "3": {
+              "name": "Studies",
+              "children": {}
+            },
+            "4": {
+              "name": "Other",
+              "children": {
+                "3": {
+                  "name": "Former Finnish citizen, Finnish origin",
+                  "children": {}
+                },
+                "4": {
+                  "name": "Returnee",
+                  "children": {}
+                },
+                "8": {
+                  "name": "P-EU status in another state",
+                  "children": {}
+                },
+                "9": {
+                  "name": "Residence permit for a victim on human trafficking",
+                  "children": {}
+                },
+                "107": {
+                  "name": "Other ground",
+                  "children": {}
+                },
+                "109": {
+                  "name": "Au pair",
+                  "children": {}
+                },
+                "110": {
+                  "name": "Adoption",
+                  "children": {}
+                },
+                "452003": {
+                  "name": "Working holiday",
+                  "children": {}
+                },
+                "454002": {
+                  "name": "Looking for work",
+                  "children": {}
+                },
+                "488030": {
+                  "name": "Residence permit on the basis of established relationship",
+                  "children": {}
+                }
+              }
+            }
+          }
+        },
+        "60": {
+          "name": "Extended Residence Permit",
+          "children": {
+            "10": {
+              "name": "Family",
+              "children": {
+                "166": {
+                  "name": "Spouse of a Finnish citizen",
+                  "children": {}
+                },
+                "167": {
+                  "name": "Child of a Finnish citizen",
+                  "children": {}
+                },
+                "168": {
+                  "name": "Guardian of a Finnish citizen",
+                  "children": {}
+                },
+                "169": {
+                  "name": "Other relative of a Finnish citizen",
+                  "children": {}
+                },
+                "170": {
+                  "name": "Spouse of a person granted int. protection",
+                  "children": {}
+                },
+                "171": {
+                  "name": "Child of a person granted int. protection",
+                  "children": {}
+                },
+                "172": {
+                  "name": "Other relative of a person granted int. protection",
+                  "children": {}
+                },
+                "173": {
+                  "name": "Guardian of a person granted int. protection",
+                  "children": {}
+                },
+                "174": {
+                  "name": "Spouse of other foreign national",
+                  "children": {}
+                },
+                "175": {
+                  "name": "Child of other foreign national",
+                  "children": {}
+                },
+                "176": {
+                  "name": "Guardian of other foreign national",
+                  "children": {}
+                },
+                "10000140": {
+                  "name": "Other relative of other foreign national",
+                  "children": {}
+                }
+              }
+            },
+            "20": {
+              "name": "Work",
+              "children": {
+                "153": {
+                  "name": "Entrepreneur",
+                  "children": {}
+                },
+                "156": {
+                  "name": "Internship",
+                  "children": {}
+                },
+                "159": {
+                  "name": "Residence permit for an employed person",
+                  "children": {}
+                },
+                "160": {
+                  "name": "Specialist",
+                  "children": {}
+                },
+                "162": {
+                  "name": "Sports and coaching",
+                  "children": {}
+                },
+                "164": {
+                  "name": "Scientific research",
+                  "children": {}
+                },
+                "165": {
+                  "name": "Other work",
+                  "children": {}
+                },
+                "424004": {
+                  "name": "Specialist, Blue Card",
+                  "children": {}
+                },
+                "452004": {
+                  "name": "Other trainee",
+                  "children": {}
+                },
+                "454003": {
+                  "name": "National researcher",
+                  "children": {}
+                },
+                "455001": {
+                  "name": "Degree or research completed in Finland",
+                  "children": {}
+                },
+                "488003": {
+                  "name": "Seasonal work",
+                  "children": {}
+                },
+                "488005": {
+                  "name": "Seasonal work requiring a partial decision",
+                  "children": {}
+                },
+                "488007": {
+                  "name": "Intra-corporate transfer",
+                  "children": {}
+                },
+                "488009": {
+                  "name": "Mobile intra-corporate transfer",
+                  "children": {}
+                },
+                "488011": {
+                  "name": "Start-up entrepreneur",
+                  "children": {}
+                },
+                "488020": {
+                  "name": "Volunteering",
+                  "children": {}
+                }
+              }
+            },
+            "30": {
+              "name": "Studies",
+              "children": {}
+            },
+            "40": {
+              "name": "Other",
+              "children": {
+                "11": {
+                  "name": "Humanitäärinen suojelu",
+                  "children": {}
+                },
+                "150": {
+                  "name": "Oleskelulupa suojelun tarpeen perusteella",
+                  "children": {}
+                },
+                "151": {
+                  "name": "Adoption",
+                  "children": {}
+                },
+                "152": {
+                  "name": "Au pair",
+                  "children": {}
+                },
+                "154": {
+                  "name": "Former Finnish citizen, Finnish origin",
+                  "children": {}
+                },
+                "155": {
+                  "name": "Returnee",
+                  "children": {}
+                },
+                "157": {
+                  "name": "Residence permit for a victim on human trafficking",
+                  "children": {}
+                },
+                "158": {
+                  "name": "Other ground",
+                  "children": {}
+                },
+                "163": {
+                  "name": "Tilapäinen suojelu",
+                  "children": {}
+                },
+                "177": {
+                  "name": "Residence permit on a discretionary basis on humanitarian grounds",
+                  "children": {}
+                },
+                "178": {
+                  "name": "Obstacle for removal from the country",
+                  "children": {}
+                },
+                "214": {
+                  "name": "Humanitäärinen kiintiö",
+                  "children": {}
+                },
+                "215": {
+                  "name": "Looking for work",
+                  "children": {}
+                },
+                "452005": {
+                  "name": "Working holiday",
+                  "children": {}
+                },
+                "454000": {
+                  "name": "Employer misconduct",
+                  "children": {}
+                },
+                "488029": {
+                  "name": "Residence permit on the basis of established relationship",
+                  "children": {}
+                }
+              }
+            },
+            "50": {
+              "name": "Extended permit for a person who has been granted international protection",
+              "children": {}
+            },
+            "2001": {
+              "name": "Permanent residence permit",
+              "children": {
+                "2628": {
+                  "name": "Permanent residence permit",
+                  "children": {}
+                }
+              }
+            }
+          }
+        },
+        "61": {
+          "name": "Permanent Residence Permit",
+          "children": {
+            "2000": {
+              "name": "Long-term resident’s EU residence permit for third-country nationals",
+              "children": {}
+            },
+            "2001": {
+              "name": "Permanent residence permit",
+              "children": {
+                "2628": {
+                  "name": "Permanent residence permit",
+                  "children": {}
+                },
+                "488024": {
+                  "name": "Permanent residence permit for entrepreneurs",
+                  "children": {}
+                },
+                "488025": {
+                  "name": "Permanent residence permit on the basis of work",
+                  "children": {}
+                },
+                "488026": {
+                  "name": "Permanent residence permit on the basis of protection",
+                  "children": {}
+                },
+                "488027": {
+                  "name": "Permanent residence permit on the basis of family ties",
+                  "children": {}
+                },
+                "488028": {
+                  "name": "Permanent residence permit on other grounds",
+                  "children": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "23330": {
+      "name": "International Protection",
+      "children": {
+        "48": {
+          "name": "Temporary Protection",
+          "children": {
+            "2623": {
+              "name": "Temporary protection",
+              "children": {}
+            },
+            "470001": {
+              "name": "Matter concerning temporary protection, unaccompanied minor",
+              "children": {}
+            }
+          }
+        },
+        "49": {
+          "name": "Asylum Applications",
+          "children": {
+            "13": {
+              "name": "First application, accompanied minor",
+              "children": {}
+            },
+            "14": {
+              "name": "First application, unaccompanied minor",
+              "children": {}
+            },
+            "303": {
+              "name": "EU citizen",
+              "children": {}
+            },
+            "304": {
+              "name": "Subsequent application (before 12 June 2026)",
+              "children": {}
+            },
+            "2624": {
+              "name": "First application, adult",
+              "children": {}
+            },
+            "455003": {
+              "name": "Subsequent application, adult",
+              "children": {}
+            },
+            "455004": {
+              "name": "Subsequent application, accompanied minor",
+              "children": {}
+            },
+            "457000": {
+              "name": "Internal transfer, adult",
+              "children": {}
+            },
+            "488016": {
+              "name": "Subsequent application (before 12 June 2026), adult",
+              "children": {}
+            }
+          }
+        }
+      }
+    },
+    "23331": {
+      "name": "Citizenship",
+      "children": {
+        "41": {
+          "name": "Determination of citizenship",
+          "children": {}
+        },
+        "42": {
+          "name": "Citizenship application",
+          "children": {}
+        },
+        "43": {
+          "name": "Citizenship declaration",
+          "children": {
+            "36": {
+              "name": "Native Nordic citizen",
+              "children": {}
+            },
+            "301": {
+              "name": "Adopted child of a Finnish citizen",
+              "children": {}
+            },
+            "1680": {
+              "name": "Father with Finnish citizenship",
+              "children": {}
+            },
+            "1682": {
+              "name": "Young person (18 to 22 years of age) with long-term residence in Finland",
+              "children": {}
+            },
+            "1683": {
+              "name": "Former Finnish citizen",
+              "children": {}
+            }
+          }
+        },
+        "44": {
+          "name": "Loss of citizenship",
+          "children": {
+            "1689": {
+              "name": "On the grounds of annulment of paternity",
+              "children": {}
+            },
+            "1690": {
+              "name": "On the grounds of giving false information",
+              "children": {}
+            },
+            "455000": {
+              "name": "Nationality law 33 a §",
+              "children": {}
+            }
+          }
+        },
+        "45": {
+          "name": "Application for release",
+          "children": {}
+        }
+      }
+    },
+    "23332": {
+      "name": "Removal from the country",
+      "children": {
+        "52": {
+          "name": "Deportation",
+          "children": {
+            "256": {
+              "name": "Unauthorised stay",
+              "children": {}
+            },
+            "257": {
+              "name": "Guilty of crimes",
+              "children": {}
+            }
+          }
+        },
+        "53": {
+          "name": "Denial of admittance or stay",
+          "children": {
+            "530001": {
+              "name": "Refusal of entry, other reasons",
+              "children": {}
+            },
+            "530002": {
+              "name": "Refusal of entry in connection with a negative residence permit decision",
+              "children": {}
+            },
+            "530003": {
+              "name": "Refusal of entry in connection with a negative asylum decision",
+              "children": {}
+            }
+          }
+        }
+      }
+    },
+    "23335": {
+      "name": "Travel Documents",
+      "children": {
+        "91": {
+          "name": "Alien’s passport and Refugee travel document",
+          "children": {
+            "910001": {
+              "name": "Alien’s passports",
+              "children": {}
+            },
+            "910002": {
+              "name": "Refugee travel document",
+              "children": {}
+            }
+          }
+        }
+      }
+    },
+    "23340": {
+      "name": "Right of residence on grounds other than residence permit",
+      "children": {
+        "63": {
+          "name": "Registration of an EU citizen",
+          "children": {
+            "1001": {
+              "name": "Studies",
+              "children": {}
+            },
+            "1002": {
+              "name": "Other",
+              "children": {
+                "26": {
+                  "name": "Sufficient means of support",
+                  "children": {}
+                },
+                "28": {
+                  "name": "A document certifying the right of permanent residence",
+                  "children": {}
+                },
+                "190": {
+                  "name": "Others",
+                  "children": {}
+                }
+              }
+            },
+            "1003": {
+              "name": "Family",
+              "children": {
+                "25": {
+                  "name": "Family",
+                  "children": {}
+                }
+              }
+            },
+            "1004": {
+              "name": "Work",
+              "children": {
+                "233": {
+                  "name": "Self-employed",
+                  "children": {}
+                },
+                "2630": {
+                  "name": "Work",
+                  "children": {}
+                }
+              }
+            },
+            "1005": {
+              "name": "A family member’s residence card",
+              "children": {
+                "27": {
+                  "name": "Residence card for a family member",
+                  "children": {}
+                },
+                "29": {
+                  "name": "Permanent residence card for a family member",
+                  "children": {}
+                }
+              }
+            }
+          }
+        },
+        "83": {
+          "name": "Residence certificates and notifications",
+          "children": {
+            "488000": {
+              "name": "Seasonal work certificate",
+              "children": {}
+            },
+            "488001": {
+              "name": "Short-term mobility notification",
+              "children": {}
+            },
+            "488021": {
+              "name": "Mobility notification for researchers",
+              "children": {}
+            },
+            "488022": {
+              "name": "Mobility notification for family members of researchers",
+              "children": {}
+            },
+            "488023": {
+              "name": "Mobility notification for student",
+              "children": {}
+            }
+          }
+        },
+        "488002": {
+          "name": "Long term visa",
+          "children": {
+            "488033": {
+              "name": "D-visa",
+              "children": {}
+            }
+          }
+        },
+        "532000": {
+          "name": "Right of permanent residence under the withdrawal agreement",
+          "children": {
+            "532000": {
+              "name": "Right of residence under the withdrawal agreement",
+              "children": {}
+            },
+            "532001": {
+              "name": "Right of permanent residence under the withdrawal agreement",
+              "children": {}
+            },
+            "532002": {
+              "name": "Right of residence for family member under the withdrawal agreement",
+              "children": {}
+            },
+            "532003": {
+              "name": "Right of permanent residence for family member under the withdrawal agreement",
+              "children": {}
+            },
+            "532004": {
+              "name": "Right of permanent residence under the withdrawal agreement (update existing status)",
+              "children": {}
+            },
+            "532005": {
+              "name": "Right of permanent residence for family member under the withdrawal agreement (update existing status)",
+              "children": {}
+            }
+          }
+        }
+      }
+    }
+  }
+}

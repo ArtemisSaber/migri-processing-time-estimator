@@ -1,0 +1,17 @@
+{
+  "sourceUrl": "https://migri-statistics-data.s3.ap-northeast-3.amazonaws.com/migri-statistics.json.gz",
+  "sourceFile": "data/source/migri-statistics.json.gz",
+  "sourceStateFile": "data/source/migri-statistics.sync.json",
+  "outputFile": "data/estimates.json",
+  "namesFile": "config/type-names.json",
+  "codebookFile": "config/migri-codebook.en.json",
+  "monthMapping": {
+    "anchorId": 540,
+    "anchorPeriod": "2015-01",
+    "status": "inferred"
+  },
+  "historyMonths": 24,
+  "rollingWindowMonths": 6,
+  "suppressionThreshold": 6,
+  "maxProjectionMonths": 240
+}

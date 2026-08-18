@@ -1,0 +1,42 @@
+{
+  "name": "migri-processing-time-estimator",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=20.9.0"
+  },
+  "scripts": {
+    "sync:data": "node scripts/sync-source.mjs",
+    "update:labels": "node scripts/extract-migri-codebook.mjs",
+    "pregenerate:data": "npm run sync:data",
+    "generate:data": "node scripts/generate-estimates.mjs",
+    "predev": "npm run generate:data",
+    "dev": "next dev",
+    "prebuild": "npm run generate:data",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "npm run generate:data && node --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "next": "16.2.6",
+    "react": "19.2.6",
+    "react-dom": "19.2.6"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.39.4",
+    "@next/eslint-plugin-next": "16.2.6",
+    "@types/node": "22.19.19",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "eslint": "9.39.4",
+    "eslint-plugin-jsx-a11y": "6.10.2",
+    "eslint-plugin-react": "7.37.5",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "globals": "16.4.0",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.59.3"
+  },
+  "type": "module"
+}
