@@ -59,6 +59,20 @@ npm run lint
 npm run build
 ```
 
+## GitHub Pages deployment
+
+The workflow at `.github/workflows/deploy-pages.yml` validates pull requests and
+deploys the static export after every push to `main`. It can also be started
+manually from the repository's Actions tab.
+
+The build reads the Pages base path from GitHub's Pages configuration instead of
+hard-coding the repository name. `npm run build` writes the deployable site to
+`out/`; generated estimator data and the cached source snapshot remain build
+artifacts and are not committed.
+
+The deployment requires network access to the public S3 source configured in
+`config/estimator.json`.
+
 ## Taxonomy names
 
 `npm run generate:data` derives the complete taxonomy hierarchy from the source
