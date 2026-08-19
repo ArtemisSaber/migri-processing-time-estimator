@@ -1,0 +1,283 @@
+{
+  "generated_at": "2026-08-19",
+  "description": "Migri external queue/backlog checkpoints discussed in chat. Age-distribution anchors are intentionally excluded.",
+  "anchors": [
+    {
+      "date": "2022-10-20",
+      "domain": "residence_permit",
+      "category": "family_ties",
+      "scope": "all_family_ties",
+      "metric": "pending_applications",
+      "value": 10500,
+      "qualifier": "approximately",
+      "source_url": "https://migri.fi/en/-/backlogs-in-the-processing-of-residence-permit-applications-based-on-family-ties"
+    },
+    {
+      "date": "2023-05-17",
+      "domain": "residence_permit",
+      "category": "family_ties",
+      "scope": "all_family_ties",
+      "metric": "pending_applications",
+      "value": 10800,
+      "qualifier": "approximately",
+      "source_url": "https://migri.fi/en/-/information-on-the-processing-of-applications-on-the-basis-of-family-ties"
+    },
+    {
+      "date": "2023-12-11",
+      "domain": "residence_permit",
+      "category": "family_ties",
+      "scope": "all_family_ties",
+      "metric": "pending_applications",
+      "value": 11800,
+      "qualifier": "approximately",
+      "source_url": "https://migri.fi/en/-/backlog-in-processing-applications-based-on-family-ties-december-2023"
+    },
+    {
+      "date": "2025-02-20",
+      "domain": "residence_permit",
+      "category": "family_ties",
+      "scope": "all_family_ties",
+      "metric": "pending_applications",
+      "min_value": 15000,
+      "qualifier": "more_than",
+      "source_url": "https://migri.fi/en/-/backlogs-in-the-processing-of-residence-permit-applications-based-on-family-ties-1"
+    },
+    {
+      "date": "2025-06-16",
+      "domain": "residence_permit",
+      "category": "family_ties",
+      "scope": "all_family_ties",
+      "metric": "pending_applications",
+      "min_value": 15000,
+      "qualifier": "more_than",
+      "source_url": "https://migri.fi/en/-/backlogs-in-the-processing-of-residence-permit-applications-based-on-family-ties"
+    },
+    {
+      "date": "2025-11-06",
+      "domain": "residence_permit",
+      "category": "family_ties",
+      "scope": "all_family_ties",
+      "metric": "pending_applications",
+      "value": 18200,
+      "qualifier": "approximately",
+      "source_url": "https://migri.fi/en/-/update-on-processing-of-applications-submitted-on-the-basis-of-family-ties"
+    },
+    {
+      "date": "2022-03-25",
+      "domain": "residence_permit",
+      "category": "study",
+      "scope": "first_permit",
+      "metric": "pending_applications",
+      "value": 408,
+      "qualifier": "approximately",
+      "source_url": "https://migri.fi/en/-/opiskelija-seuraa-kasittelytilannetta-verkkosivuilla-tai-enter-finlandis-2"
+    },
+    {
+      "date": "2022-03-25",
+      "domain": "residence_permit",
+      "category": "study",
+      "scope": "extended_permit",
+      "metric": "pending_applications",
+      "value": 264,
+      "qualifier": "approximately",
+      "source_url": "https://migri.fi/en/-/opiskelija-seuraa-kasittelytilannetta-verkkosivuilla-tai-enter-finlandis-2"
+    },
+    {
+      "date": "2023-08-25",
+      "domain": "residence_permit",
+      "category": "study",
+      "scope": "first_permit",
+      "metric": "pending_applications",
+      "value": 1780,
+      "qualifier": "approximately",
+      "source_url": "https://migri.fi/en/-/backlogs-in-the-processing-of-residence-permits-for-studies"
+    },
+    {
+      "date": "2024-08-12",
+      "domain": "residence_permit",
+      "category": "study",
+      "scope": "first_permit",
+      "metric": "pending_applications",
+      "value": 1295,
+      "qualifier": "exact_as_published",
+      "source_url": "https://migri.fi/en/-/current-information-about-the-processing-of-students-residence-permit-applications"
+    },
+    {
+      "date": "2026-08-13",
+      "domain": "residence_permit",
+      "category": "study",
+      "scope": "first_permit",
+      "metric": "pending_or_being_processed",
+      "value": 1489,
+      "qualifier": "approximately",
+      "source_url": "https://migri.fi/en/the-processing-queue-of-students-residence-permit-applications"
+    },
+    {
+      "date": "2026-08-13",
+      "domain": "residence_permit",
+      "category": "study",
+      "scope": "extended_permit",
+      "metric": "pending_or_being_processed",
+      "value": 593,
+      "qualifier": "approximately",
+      "source_url": "https://migri.fi/en/the-processing-queue-of-students-residence-permit-applications"
+    },
+    {
+      "date": "2021-11-15",
+      "domain": "citizenship",
+      "category": "citizenship",
+      "scope": "all",
+      "metric": "pending_applications",
+      "value": 15000,
+      "qualifier": "approximately",
+      "source_url": "https://migri.fi/en/-/backlogs-in-the-processing-of-citizenship-applications"
+    },
+    {
+      "date": "2022-08-09",
+      "domain": "citizenship",
+      "category": "citizenship",
+      "scope": "all",
+      "metric": "pending_applications",
+      "value": 19000,
+      "qualifier": "approximately",
+      "source_url": "https://migri.fi/en/-/backlogs-in-the-processing-of-citizenship-applications-1"
+    },
+    {
+      "date": "2024-10-01",
+      "domain": "citizenship",
+      "category": "citizenship",
+      "scope": "all",
+      "metric": "pending_applications",
+      "value": 28000,
+      "qualifier": "approximately",
+      "source_url": "https://migri.fi/en/-/longer-period-of-residence-required-for-citizenship-as-of-1-october-2024"
+    },
+    {
+      "date": "2025-04-08",
+      "domain": "citizenship",
+      "category": "citizenship",
+      "scope": "all",
+      "metric": "pending_applications",
+      "value": 17600,
+      "qualifier": "approximately",
+      "source_url": "https://migri.fi/en/-/backlog-of-citizenship-applications-is-being-cleared"
+    },
+    {
+      "date": "2019-12-12",
+      "domain": "residence_permit",
+      "category": "specialist",
+      "scope": "first_permit",
+      "metric": "pending_applications",
+      "max_value": 90,
+      "qualifier": "fewer_than",
+      "source_url": "https://migri.fi/en/-/erityisasiantuntijoiden-oleskelulupahakemusten-ruuhka-purettu"
+    },
+    {
+      "date": "2019-12-12",
+      "domain": "residence_permit",
+      "category": "specialist",
+      "scope": "extended_permit",
+      "metric": "pending_applications",
+      "max_value": 60,
+      "qualifier": "fewer_than",
+      "source_url": "https://migri.fi/en/-/erityisasiantuntijoiden-oleskelulupahakemusten-ruuhka-purettu"
+    },
+    {
+      "date": "2022-03-30",
+      "domain": "brexit",
+      "category": "brexit_permit",
+      "scope": "all",
+      "metric": "pending_applications",
+      "value": 850,
+      "qualifier": "approximately",
+      "source_url": "https://migri.fi/en/-/delays-in-processing-brexit-applications"
+    },
+    {
+      "date": "2016-05-01",
+      "domain": "asylum",
+      "category": "asylum",
+      "scope": "all",
+      "metric": "pending_applications",
+      "value": 21000,
+      "qualifier": "slightly_over",
+      "source_url": "https://migri.fi/en/artikkeli/-/asset_publisher/turvapaikanhakija-voit-joutua-odottamaan-kutsua-puhutteluun-kuukausia"
+    },
+    {
+      "date": "2016-05-01",
+      "domain": "asylum",
+      "category": "asylum",
+      "scope": "all",
+      "metric": "waiting_for_interview_invitation",
+      "value": 15000,
+      "qualifier": "approximately",
+      "note": "Process-state anchor, not an age-distribution anchor.",
+      "source_url": "https://migri.fi/en/artikkeli/-/asset_publisher/turvapaikanhakija-voit-joutua-odottamaan-kutsua-puhutteluun-kuukausia"
+    },
+    {
+      "date": "2024-12-10",
+      "domain": "asylum",
+      "category": "asylum",
+      "scope": "nationality",
+      "nationality": "Syria",
+      "metric": "pending_applications",
+      "value": 350,
+      "qualifier": "approximately",
+      "source_url": "https://migri.fi/en/-/decision-making-on-asylum-applications-from-syrians-paused-by-finnish-immigration-service"
+    },
+    {
+      "date": "2025-09-26",
+      "domain": "asylum",
+      "category": "asylum",
+      "scope": "nationality",
+      "nationality": "Syria",
+      "metric": "pending_applications",
+      "value": 320,
+      "qualifier": "approximately",
+      "source_url": "https://migri.fi/en/-/finnish-immigration-service-resumes-issuing-asylum-decisions-for-syrians"
+    },
+    {
+      "date": "2026-02-05",
+      "domain": "asylum",
+      "category": "asylum",
+      "scope": "nationality",
+      "nationality": "Iran",
+      "metric": "pending_applications",
+      "value": 100,
+      "qualifier": "approximately",
+      "source_url": "https://migri.fi/en/-/finnish-immigration-service-to-assess-security-situation-of-iran-decisions-on-asylum-applications-partly-paused"
+    },
+    {
+      "date": "2017-07-04",
+      "domain": "residence_permit",
+      "category": "police_transfer_inventory",
+      "scope": "transferred_cases",
+      "metric": "waiting_for_processing",
+      "value": 80,
+      "qualifier": "approximately",
+      "note": "Special migration/reset event; not a normal category backlog series.",
+      "source_url": "https://migri.fi/en/-/jonotilanne-kasittelya-odottaa-80-poliisilta-siirtynytta-hakemusta"
+    },
+    {
+      "date": "2017-07-04",
+      "domain": "residence_permit",
+      "category": "police_transfer_inventory",
+      "scope": "transferred_cases",
+      "metric": "being_processed",
+      "value": 1340,
+      "qualifier": "approximately",
+      "note": "Special migration/reset event; not a normal category backlog series.",
+      "source_url": "https://migri.fi/en/-/jonotilanne-kasittelya-odottaa-80-poliisilta-siirtynytta-hakemusta"
+    },
+    {
+      "date": "2017-07-04",
+      "domain": "residence_permit",
+      "category": "police_transfer_inventory",
+      "scope": "transferred_cases",
+      "metric": "waiting_for_te_office_partial_decision",
+      "value": 40,
+      "qualifier": "approximately",
+      "note": "Special migration/reset event; not a normal category backlog series.",
+      "source_url": "https://migri.fi/en/-/jonotilanne-kasittelya-odottaa-80-poliisilta-siirtynytta-hakemusta"
+    }
+  ]
+}

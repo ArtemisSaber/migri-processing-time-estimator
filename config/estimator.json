@@ -5,6 +5,7 @@
   "outputFile": "data/estimates.json",
   "namesFile": "config/type-names.json",
   "codebookFile": "config/migri-codebook.en.json",
+  "externalAnchorsFile": "config/migri-external-anchors-no-age.json",
   "monthMapping": {
     "anchorId": 540,
     "anchorPeriod": "2015-01",
@@ -14,6 +15,199 @@
   "rollingWindowMonths": 6,
   "suppressionThreshold": 6,
   "maxProjectionMonths": 240,
+  "externalAnchorMappings": [
+    {
+      "id": "family-ties",
+      "selector": {
+        "domain": "residence_permit",
+        "category": "family_ties",
+        "scope": "all_family_ties",
+        "metric": "pending_applications"
+      },
+      "scopePrefixes": [
+        "21205/59/1",
+        "21205/60/10"
+      ],
+      "disposition": "calibration",
+      "reason": "The six snapshots describe one consistent all-family-ties stock series and can seed the nationality-preserving queue."
+    },
+    {
+      "id": "study-first-pending",
+      "selector": {
+        "domain": "residence_permit",
+        "category": "study",
+        "scope": "first_permit",
+        "metric": "pending_applications"
+      },
+      "scopePrefixes": [
+        "21205/59/3"
+      ],
+      "disposition": "diagnostic",
+      "reason": "The published snapshots are below cumulative applications minus decisions, so an opening-stock-only correction cannot reproduce them; unreported exits or scope changes are required."
+    },
+    {
+      "id": "study-extended-pending",
+      "selector": {
+        "domain": "residence_permit",
+        "category": "study",
+        "scope": "extended_permit",
+        "metric": "pending_applications"
+      },
+      "scopePrefixes": [
+        "21205/60/30"
+      ],
+      "disposition": "diagnostic",
+      "reason": "The snapshot is retained for validation, but the stock equation cannot meet it while keeping every nationality balance non-negative through the observed series."
+    },
+    {
+      "id": "study-first-current",
+      "selector": {
+        "domain": "residence_permit",
+        "category": "study",
+        "scope": "first_permit",
+        "metric": "pending_or_being_processed"
+      },
+      "scopePrefixes": [
+        "21205/59/3"
+      ],
+      "disposition": "diagnostic",
+      "reason": "The broader pending-or-being-processed metric is retained for validation once the synchronized monthly source includes its observation month."
+    },
+    {
+      "id": "study-extended-current",
+      "selector": {
+        "domain": "residence_permit",
+        "category": "study",
+        "scope": "extended_permit",
+        "metric": "pending_or_being_processed"
+      },
+      "scopePrefixes": [
+        "21205/60/30"
+      ],
+      "disposition": "diagnostic",
+      "reason": "The broader pending-or-being-processed metric is retained for validation once the synchronized monthly source includes its observation month."
+    },
+    {
+      "id": "citizenship-applications",
+      "selector": {
+        "domain": "citizenship",
+        "category": "citizenship",
+        "scope": "all",
+        "metric": "pending_applications"
+      },
+      "scopePrefixes": [
+        "23331/42"
+      ],
+      "disposition": "diagnostic",
+      "reason": "The 2021–2024 anchors are close to the published flows, but the April 2025 queue reduction cannot be represented without unreported removals; using a static opening seed would overstate the latest backlog."
+    },
+    {
+      "id": "specialist-first",
+      "selector": {
+        "domain": "residence_permit",
+        "category": "specialist",
+        "scope": "first_permit",
+        "metric": "pending_applications"
+      },
+      "scopePrefixes": [
+        "21205/59/2/232"
+      ],
+      "disposition": "diagnostic",
+      "reason": "The published upper bound conflicts with the opening stock required to prevent nationality balances from becoming negative, so it must not be converted into extra backlog."
+    },
+    {
+      "id": "specialist-extended",
+      "selector": {
+        "domain": "residence_permit",
+        "category": "specialist",
+        "scope": "extended_permit",
+        "metric": "pending_applications"
+      },
+      "scopePrefixes": [
+        "21205/60/20/160"
+      ],
+      "disposition": "diagnostic",
+      "reason": "The published upper bound conflicts with the opening stock required to prevent nationality balances from becoming negative, so it must not be converted into extra backlog."
+    },
+    {
+      "id": "brexit-permits",
+      "selector": {
+        "domain": "brexit",
+        "category": "brexit_permit",
+        "scope": "all",
+        "metric": "pending_applications"
+      },
+      "scopePrefixes": [
+        "23340/532000"
+      ],
+      "disposition": "diagnostic",
+      "reason": "This category begins after the source start and its snapshot requires a dated queue reset rather than a January 2015 opening seed."
+    },
+    {
+      "id": "asylum-total-pending",
+      "selector": {
+        "domain": "asylum",
+        "category": "asylum",
+        "scope": "all",
+        "metric": "pending_applications"
+      },
+      "scopePrefixes": [
+        "23330/49"
+      ],
+      "disposition": "diagnostic",
+      "reason": "The lower-bound statement is useful validation, but the public applications and decisions require substantial unobserved exits before it can calibrate a queue trajectory."
+    },
+    {
+      "id": "asylum-interview-state",
+      "selector": {
+        "domain": "asylum",
+        "category": "asylum",
+        "scope": "all",
+        "metric": "waiting_for_interview_invitation"
+      },
+      "scopePrefixes": [
+        "23330/49"
+      ],
+      "disposition": "excluded",
+      "reason": "This is one process state within the asylum inventory, not the total pending queue."
+    },
+    {
+      "id": "asylum-nationality-pending",
+      "selector": {
+        "domain": "asylum",
+        "category": "asylum",
+        "scope": "nationality",
+        "metric": "pending_applications"
+      },
+      "scopePrefixes": [
+        "23330/49"
+      ],
+      "disposition": "diagnostic",
+      "reason": "These snapshots validate individual nationality stocks but do not identify the total asylum queue."
+    },
+    {
+      "id": "police-transfer-inventory",
+      "selector": {
+        "category": "police_transfer_inventory"
+      },
+      "scopePrefixes": [],
+      "disposition": "excluded",
+      "reason": "This was a one-off transfer inventory and not a recurring application-category queue."
+    }
+  ],
+  "backlogCalibrations": [
+    {
+      "name": "Family-ties published backlog checkpoints",
+      "anchorMappingId": "family-ties",
+      "scopePrefixes": [
+        "21205/59/1",
+        "21205/60/10"
+      ],
+      "seedPeriod": "2015-01",
+      "snapshotTiming": "start-of-month",
+      "distribution": "constrained-nationality-first-observed-month-application-share"
+    }
+  ],
   "model": {
     "longWindowMonths": 12,
     "volatilityWindowMonths": 24,
@@ -25,13 +219,6 @@
     "capacityRangeZ": 1.28,
     "minimumCapacityUncertainty": 0.08,
     "maximumCapacityUncertainty": 0.4,
-    "nationalityDemandWindowMonths": 12,
-    "nationalityDemandPriorApplications": 30,
-    "nationalityPriorDecisions": 30,
-    "nationalityMaximumWeight": 0.85,
-    "nationalityAllocationFloor": 0.5,
-    "nationalityAllocationCeiling": 2,
-    "nationalityAllocationMeanReversion": 0.9,
     "fifoPriorityShare": 0.9,
     "softFifoAgePower": 2
   }

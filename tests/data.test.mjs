@@ -11,9 +11,17 @@ const configUrl = new URL("../config/estimator.json", import.meta.url);
 async function readConfiguredSource() {
   const config = JSON.parse(await readFile(configUrl, "utf8"));
   const sourceUrl = new URL(`../${config.sourceFile}`, import.meta.url);
-  const compressed = await readFile(sourceUrl);
+  const externalAnchorsUrl = new URL(
+    `../${config.externalAnchorsFile}`,
+    import.meta.url,
+  );
+  const [compressed, externalAnchors] = await Promise.all([
+    readFile(sourceUrl),
+    readFile(externalAnchorsUrl, "utf8").then(JSON.parse),
+  ]);
   return {
     config,
+    externalAnchors,
     source: JSON.parse(gunzipSync(compressed).toString("utf8")),
   };
 }
@@ -41,6 +49,9 @@ test("generated estimator data has the expected shape", async () => {
 
   assert.equal(sourceUrl.protocol, "https:");
   assert.ok(!configuredSource.config.sourceFile.split("/").includes(".."));
+  assert.ok(
+    !configuredSource.config.externalAnchorsFile.split("/").includes(".."),
+  );
   assert.equal(data.metadata.historyMonths, configuredSource.config.historyMonths);
   assert.equal(
     data.metadata.rollingWindowMonths,
@@ -50,9 +61,103 @@ test("generated estimator data has the expected shape", async () => {
     data.metadata.suppressionThreshold,
     configuredSource.config.suppressionThreshold,
   );
-  assert.equal(data.metadata.modelVersion, 2);
+  assert.equal(data.metadata.modelVersion, 5);
   assert.match(data.metadata.model, /hierarchical/i);
-  assert.match(data.metadata.nationalityModel, /partially pooled/i);
+  assert.match(data.metadata.initialBacklogModel, /published-checkpoint/i);
+  assert.equal(
+    data.metadata.externalBacklogAnchors.totalAnchors,
+    configuredSource.externalAnchors.anchors.length,
+  );
+  assert.equal(data.metadata.externalBacklogAnchors.totalAnchors, 27);
+  assert.deepEqual(data.metadata.externalBacklogAnchors.dispositions, {
+    calibration: 6,
+    diagnostic: 15,
+    deferred: 2,
+    excluded: 4,
+  });
+  assert.equal(
+    data.metadata.externalBacklogAnchors.mappings.reduce(
+      (total, mapping) => total + mapping.anchors.length,
+      0,
+    ),
+    data.metadata.externalBacklogAnchors.totalAnchors,
+  );
+  assert.deepEqual(
+    data.metadata.externalBacklogAnchors.mappings.map(({ id }) => id).sort(),
+    configuredSource.config.externalAnchorMappings.map(({ id }) => id).sort(),
+  );
+  assert.equal(data.metadata.backlogCalibrations.length, 1);
+  const familyCalibration = data.metadata.backlogCalibrations[0];
+  assert.equal(familyCalibration.anchorMappingId, "family-ties");
+  assert.equal(familyCalibration.seedPeriod, "2015-01");
+  assert.equal(familyCalibration.checkpointPeriod, "2025-11");
+  assert.equal(familyCalibration.pendingApplications, 18_200);
+  assert.deepEqual(
+    familyCalibration.checkpoints.map((checkpoint) => ({
+      period: checkpoint.period,
+      pendingApplications: checkpoint.pendingApplications,
+      relation: checkpoint.relation,
+    })),
+    [
+      { period: "2022-10", pendingApplications: 10_500, relation: "approximate" },
+      { period: "2023-05", pendingApplications: 10_800, relation: "approximate" },
+      { period: "2023-12", pendingApplications: 11_800, relation: "approximate" },
+      { period: "2025-02", pendingApplications: 15_000, relation: "minimum" },
+      { period: "2025-06", pendingApplications: 15_000, relation: "minimum" },
+      { period: "2025-11", pendingApplications: 18_200, relation: "approximate" },
+    ],
+  );
+  const approximateCheckpoints = familyCalibration.checkpoints.filter(
+    (checkpoint) => checkpoint.relation === "approximate",
+  );
+  assert.ok(approximateCheckpoints.every(
+    (checkpoint) => Math.abs(checkpoint.relativeResidual) < 0.1,
+  ));
+  const minimumCheckpoints = familyCalibration.checkpoints.filter(
+    (checkpoint) => checkpoint.relation === "minimum",
+  );
+  assert.equal(minimumCheckpoints.length, 2);
+  assert.ok(minimumCheckpoints.every((checkpoint) => checkpoint.satisfied));
+  assert.ok(minimumCheckpoints.every((checkpoint) => checkpoint.residual >= 0));
+  assert.equal(familyCalibration.estimatedInitialBacklog, 7_803.75);
+  assert.ok(familyCalibration.minimumRequiredInitialBacklog >= 0);
+  assert.ok(
+    familyCalibration.minimumRequiredInitialBacklog
+      <= familyCalibration.estimatedInitialBacklog,
+  );
+  assert.equal(
+    familyCalibration.discretionaryInitialBacklog,
+    familyCalibration.estimatedInitialBacklog
+      - familyCalibration.minimumRequiredInitialBacklog,
+  );
+  assert.equal(familyCalibration.checkpointResidual, 237.75);
+  assert.equal(familyCalibration.minimumQueueBalance, 0);
+  assert.equal(
+    familyCalibration.estimatedInitialBacklog
+      + familyCalibration.netFlowAtCheckpoint,
+    familyCalibration.reconstructedAtCheckpoint,
+  );
+  assert.equal(
+    familyCalibration.reconstructedAtCheckpoint
+      - familyCalibration.pendingApplications,
+    familyCalibration.checkpointResidual,
+  );
+  assert.ok(familyCalibration.constrainedNationalityCount > 0);
+  assert.ok(familyCalibration.bindingNationalityCount > 0);
+  assert.equal(
+    familyCalibration.constrainedThroughPeriod,
+    data.metadata.sourceThrough,
+  );
+  const allocatedSeed = data.paths
+    .filter((path) => familyCalibration.scopePrefixes.some((prefix) => (
+      path.path === prefix || path.path.startsWith(`${prefix}/`)
+    )))
+    .reduce((total, path) => total + path.initialBacklog, 0);
+  assert.ok(
+    Math.abs(allocatedSeed - familyCalibration.estimatedInitialBacklog) < 0.2,
+  );
+  assert.match(data.metadata.nationalityModel, /never consume another citizenship/i);
+  assert.ok(!("nationalityAdjustmentBounds" in data.metadata));
   assert.equal(
     data.metadata.fifoPriorityShare,
     configuredSource.config.model.fifoPriorityShare,
@@ -71,6 +176,8 @@ test("the requested residence-permit path is included", async () => {
   const lastPeriod = data.months.at(-1).period;
 
   assert.ok(requested, "expected path 21205/59/1/133 in generated data");
+  assert.ok(requested.initialBacklog > 0);
+  assert.ok(requested.initialBacklog < 7_566);
   assert.ok(requested.estimates[firstPeriod]);
   assert.ok(requested.estimates[lastPeriod]);
 });
@@ -87,23 +194,20 @@ test("nationality-specific estimates use Migri citizenship labels", async () => 
   assert.ok(Object.keys(requested.nationalityEstimates["23"]).length > 0);
 });
 
-test("high-volume nationality estimates retain the shared category signal", async () => {
+test("nationality estimates are generated from nationality-preserving queues", async () => {
   const data = JSON.parse(await readFile(dataUrl, "utf8"));
   const requested = data.paths.find((item) => item.path === "21205/59/1/133");
   const period = data.metadata.sourceThrough;
-  const globalEstimate = requested.estimates[period];
+  const available = Object.entries(requested.nationalityEstimates)
+    .map(([nationalityId, estimates]) => [nationalityId, estimates[period]])
+    .filter(([, estimate]) => estimate);
 
-  for (const nationalityId of ["22", "23", "39", "75"]) {
-    const estimate = requested.nationalityEstimates[nationalityId]?.[period];
-    assert.ok(estimate, `expected a current estimate for ${nationalityId}`);
+  assert.ok(available.length > 0, "expected current nationality estimates");
+  for (const [nationalityId, estimate] of available) {
     assert.ok(estimate.months > 0);
     assert.ok(estimate.lowerMonths <= estimate.months);
     assert.ok(estimate.upperMonths >= estimate.months);
-    assert.ok(
-      estimate.months / globalEstimate.months >= 0.35
-        && estimate.months / globalEstimate.months <= 3,
-      `expected ${nationalityId} to remain bounded by the pooled model`,
-    );
+    assert.ok(data.nationalities[nationalityId]);
   }
 });
 

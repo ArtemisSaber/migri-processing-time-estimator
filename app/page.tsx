@@ -19,6 +19,7 @@ type ApplicationPath = {
   path: string;
   levels: string[];
   groupCodes: string[];
+  initialBacklog: number;
   estimates: Record<string, Estimate | null>;
   nationalityEstimates: Partial<
     Record<string, Partial<Record<string, Estimate | null>>>
@@ -36,6 +37,27 @@ type EstimatorData = {
     model: string;
     modelVersion: number;
     capacityModel: string;
+    initialBacklogModel: string;
+    backlogCalibrations: Array<{
+      name: string;
+      seedPeriod: string;
+      checkpointPeriod: string;
+      pendingApplications: number;
+      estimatedInitialBacklog: number;
+      minimumRequiredInitialBacklog: number;
+      discretionaryInitialBacklog: number;
+      constrainedThroughPeriod: string;
+      minimumQueueBalance: number;
+      checkpoints: Array<{
+        period: string;
+        relation: "exact" | "approximate" | "minimum";
+        pendingApplications: number;
+        reconstructedBacklog: number;
+        residual: number;
+        relativeResidual: number;
+        satisfied: boolean | null;
+      }>;
+    }>;
     nationalityModel: string;
     fifoPriorityShare: number;
   };
@@ -237,7 +259,7 @@ export default function Home() {
                 ))}
               </select>
               <small id="nationality-note" className="nationality-note">
-                Experimental: citizenship adjusts a shared-capacity estimate and is pooled toward the application-type baseline when data are sparse.
+                Experimental: each citizenship&apos;s opening stock and monthly balance are reconstructed separately. Other citizenships affect only the shared capacity forecast, never this queue&apos;s case count.
               </small>
             </label>
 
@@ -319,7 +341,7 @@ export default function Home() {
               </div>
 
               <p className="result-footnote">
-                {nationalityId ? `This view partially pools ${selectedNationalityName} with the application type&apos;s shared capacity; it does not assume or prove a separate citizenship queue. ` : ""}
+                {nationalityId ? `This view uses ${selectedNationalityName} applications, decisions, and modeled opening stock. A decision reported for another citizenship cannot clear this queue. ` : ""}
                 {Math.round(result.observedShare * 100)}% of this cohort&apos;s modeled service occurs in months covered by published decision totals. The remainder uses a dynamic forecast based on recent, related-category, and overall throughput.
               </p>
 
@@ -347,8 +369,8 @@ export default function Home() {
         <div className="method-grid">
           <h2>Public statistics in.<br />A useful range out.</h2>
           <ol>
-            <li><span>01</span><div><b>Count incoming applications</b><p>Applications are grouped by their full taxonomy path and submission month.</p></div></li>
-            <li><span>02</span><div><b>Forecast shared capacity</b><p>Recent decisions are combined with related-category and overall throughput. Citizenship effects are partially pooled so sparse data stay close to the application-type baseline.</p></div></li>
+            <li><span>01</span><div><b>Reconstruct opening stock</b><p>Public family-ties checkpoints constrain the citizenship allocation: every monthly balance stays non-negative, exact totals are met, and approximate or lower-bound statements retain their reported meaning.</p></div></li>
+            <li><span>02</span><div><b>Forecast shared capacity</b><p>Each citizenship keeps its own applications and decisions. Related-category and overall throughput inform future capacity, but cases are never transferred between citizenships.</p></div></li>
             <li><span>03</span><div><b>Simulate an age-prioritized queue</b><p>Most capacity clears older modeled cohorts first, while a smaller age-weighted share allows for cases being handled out of strict order.</p></div></li>
           </ol>
         </div>

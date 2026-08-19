@@ -173,35 +173,16 @@ export function forecastHierarchicalCapacity({
   };
 }
 
-function cumulativeSeries(values) {
-  const result = [];
-  let total = 0;
-  for (const value of values) {
-    total += Number(value || 0);
-    result.push(total);
-  }
-  return result;
-}
-
-function cumulativeWindowTotal(cumulative, endIndex, window) {
-  if (endIndex < 0 || cumulative.length === 0) return 0;
-  const endTotal = cumulative[Math.min(endIndex, cumulative.length - 1)] ?? 0;
-  const beforeIndex = endIndex - window;
-  const beforeTotal = beforeIndex >= 0 ? cumulative[beforeIndex] : 0;
-  return endTotal - beforeTotal;
-}
-
 /**
- * Builds nationality service series whose monthly values always sum to the
- * category's observed decisions. Allocation shares are learned from each
- * nationality's recent decision share relative to its demand share, then
- * shrunk toward demand-proportional allocation when evidence is sparse.
+ * Allocates one forecast service-capacity pool across nationality classes.
+ * Recent decision share is shrunk toward recent application share, then
+ * gradually mean-reverts toward demand composition. Shares always sum to one;
+ * the caller remains responsible for servicing each class's own inventory.
  */
-export function buildPooledNationalityServices({
+export function forecastNationalityCapacityShares({
   applicationSeries,
   decisionSeries,
-  totalApplications,
-  totalDecisions,
+  throughIndex,
   options,
 }) {
   const nationalityIds = [...new Set([
@@ -210,131 +191,420 @@ export function buildPooledNationalityServices({
   ])].sort((left, right) => left.localeCompare(right, undefined, {
     numeric: true,
   }));
-  const length = totalApplications.length;
-  const totalApplicationCumulative = cumulativeSeries(totalApplications);
-  const totalDecisionCumulative = cumulativeSeries(totalDecisions);
-  const applicationCumulative = new Map(nationalityIds.map((id) => [
-    id,
-    cumulativeSeries(applicationSeries.get(id) ?? Array(length).fill(0)),
-  ]));
-  const decisionCumulative = new Map(nationalityIds.map((id) => [
-    id,
-    cumulativeSeries(decisionSeries.get(id) ?? Array(length).fill(0)),
-  ]));
-  const services = new Map(nationalityIds.map((id) => [id, {
-    counts: Array(length).fill(0),
-    shares: Array(length).fill(0),
-    demandShares: Array(length).fill(0),
-    reliabilities: Array(length).fill(0),
-  }]));
-
-  for (let index = 0; index < length; index += 1) {
-    const recentTotalApplications = cumulativeWindowTotal(
-      totalApplicationCumulative,
-      index,
-      options.nationalityDemandWindowMonths,
-    );
-    const recentTotalDecisions = cumulativeWindowTotal(
-      totalDecisionCumulative,
-      index,
-      options.shortWindowMonths,
-    );
-    const cumulativeTotalApplications = totalApplicationCumulative[index] ?? 0;
-    const rawRows = nationalityIds.map((id) => {
-      const recentApplications = cumulativeWindowTotal(
-        applicationCumulative.get(id),
-        index,
-        options.nationalityDemandWindowMonths,
-      );
-      const cumulativeApplications = applicationCumulative.get(id)?.[index] ?? 0;
-      const historicalShare = cumulativeTotalApplications > 0
-        ? cumulativeApplications / cumulativeTotalApplications
-        : 1 / Math.max(1, nationalityIds.length);
-      const demandDenominator = recentTotalApplications
-        + options.nationalityDemandPriorApplications;
-      const demandShare = demandDenominator > 0
-        ? (
-          recentApplications
-          + options.nationalityDemandPriorApplications * historicalShare
-        ) / demandDenominator
-        : historicalShare;
-      const recentDecisions = cumulativeWindowTotal(
-        decisionCumulative.get(id),
-        index,
-        options.shortWindowMonths,
-      );
-      const expectedDecisions = recentTotalDecisions * demandShare;
-      const reliability = Math.min(
-        options.nationalityMaximumWeight,
-        expectedDecisions <= 0
-          ? 0
-          : expectedDecisions
-            / (expectedDecisions + options.nationalityPriorDecisions),
-      );
-      const observedRatio = clamp(
-        (recentDecisions + 0.5) / (expectedDecisions + 0.5),
-        options.nationalityAllocationFloor,
-        options.nationalityAllocationCeiling,
-      );
-      const score = demandShare * Math.exp(
-        reliability * Math.log(observedRatio),
-      );
-      const observedDecisions = Number(
-        decisionSeries.get(id)?.[index] ?? 0,
-      );
-      return {
-        id,
-        demandShare,
-        reliability,
-        score,
-        observedDecisions,
-      };
-    });
-    const scoreTotal = sum(rawRows.map((row) => row.score));
-    const allocatedRows = rawRows.map((row) => {
-      const allocationShare = scoreTotal > 0
-        ? row.score / scoreTotal
-        : row.demandShare;
-      const pooledDecisions = Number(totalDecisions[index] || 0)
-        * allocationShare;
-      return {
-        ...row,
-        allocationShare,
-        blendedDecisions: row.reliability * row.observedDecisions
-          + (1 - row.reliability) * pooledDecisions,
-      };
-    });
-    const blendedTotal = sum(allocatedRows.map((row) => row.blendedDecisions));
-    const normalization = blendedTotal > 0
-      ? Number(totalDecisions[index] || 0) / blendedTotal
-      : 0;
-
-    for (const row of allocatedRows) {
-      const service = services.get(row.id);
-      service.counts[index] = row.blendedDecisions * normalization;
-      service.shares[index] = row.allocationShare;
-      service.demandShares[index] = row.demandShare;
-      service.reliabilities[index] = row.reliability;
-    }
-  }
-
-  for (const service of services.values()) {
-    const latestShare = service.shares.at(-1) ?? 0;
-    const latestDemandShare = service.demandShares.at(-1) ?? 0;
-    service.latestShare = latestShare;
-    service.latestDemandShare = latestDemandShare;
-    service.latestReliability = service.reliabilities.at(-1) ?? 0;
-    service.shareAt = (offset) => {
-      const persistence = options.nationalityAllocationMeanReversion
-        ** Math.max(0, Number(offset));
-      return Math.max(
-        0,
-        latestDemandShare + (latestShare - latestDemandShare) * persistence,
-      );
+  const seriesLength = Math.max(
+    0,
+    ...[...applicationSeries.values(), ...decisionSeries.values()]
+      .map((series) => series.length),
+  );
+  const endIndex = throughIndex === undefined
+    ? seriesLength - 1
+    : Number(throughIndex);
+  if (nationalityIds.length === 0) {
+    return {
+      centralShares: new Map(),
+      demandShares: new Map(),
+      reliabilities: new Map(),
+      shareAt: () => 0,
     };
   }
 
-  return services;
+  const applicationVolumes = new Map(nationalityIds.map((id) => [
+    id,
+    windowSum(
+      applicationSeries.get(id) ?? [],
+      endIndex,
+      options.longWindowMonths,
+    ),
+  ]));
+  const decisionVolumes = new Map(nationalityIds.map((id) => [
+    id,
+    windowSum(
+      decisionSeries.get(id) ?? [],
+      endIndex,
+      options.shortWindowMonths,
+    ),
+  ]));
+  const applicationTotal = sum([...applicationVolumes.values()]);
+  const decisionTotal = sum([...decisionVolumes.values()]);
+  const demandShares = new Map();
+  const serviceShares = new Map();
+  const reliabilities = new Map();
+  const rawCentralShares = new Map();
+
+  for (const id of nationalityIds) {
+    const applicationVolume = applicationVolumes.get(id) ?? 0;
+    const decisionVolume = decisionVolumes.get(id) ?? 0;
+    const demandShare = applicationTotal > 0
+      ? applicationVolume / applicationTotal
+      : decisionTotal > 0
+        ? decisionVolume / decisionTotal
+        : 1 / nationalityIds.length;
+    const serviceShare = decisionTotal > 0
+      ? decisionVolume / decisionTotal
+      : demandShare;
+    const reliability = decisionVolume
+      / (decisionVolume + options.capacityPriorDecisions);
+    const rawCentral = reliability * serviceShare
+      + (1 - reliability) * demandShare;
+
+    demandShares.set(id, demandShare);
+    serviceShares.set(id, serviceShare);
+    reliabilities.set(id, reliability);
+    rawCentralShares.set(id, rawCentral);
+  }
+
+  const rawCentralTotal = sum([...rawCentralShares.values()]);
+  const centralShares = new Map(nationalityIds.map((id) => [
+    id,
+    rawCentralTotal > 0
+      ? rawCentralShares.get(id) / rawCentralTotal
+      : demandShares.get(id),
+  ]));
+
+  return {
+    centralShares,
+    demandShares,
+    serviceShares,
+    reliabilities,
+    shareAt(id, offset) {
+      const persistence = options.capacityMeanReversion
+        ** Math.max(0, Number(offset));
+      const demandShare = demandShares.get(id) ?? 0;
+      const centralShare = centralShares.get(id) ?? demandShare;
+      return Math.max(
+        0,
+        demandShare + (centralShare - demandShare) * persistence,
+      );
+    },
+  };
+}
+
+/**
+ * Reconstructs opening inventory for a multi-class queue whose case identity
+ * is preserved. Each nationality has its own stock equation; shared capacity
+ * may influence future service rates but never moves cases between classes.
+ *
+ * Exact checkpoints fix the total opening stock, approximate checkpoints act
+ * as soft calibration targets, and minimum checkpoints impose lower bounds.
+ * Per-nationality floors come from the worst cumulative
+ * applications-minus-decisions balance over the complete constraint horizon.
+ * Stock above those floors follows the supplied opening-month weights.
+ */
+export function reconstructNationalityBacklogs({
+  applicationSeries,
+  decisionSeries,
+  checkpoints,
+  checkpointIndex,
+  pendingApplications,
+  seedWeights = new Map(),
+  constraintsThroughIndex,
+}) {
+  const nationalityIds = [...new Set([
+    ...applicationSeries.keys(),
+    ...decisionSeries.keys(),
+  ])].sort((left, right) => left.localeCompare(right, undefined, {
+    numeric: true,
+  }));
+  const seriesLength = Math.max(
+    0,
+    ...[...applicationSeries.values(), ...decisionSeries.values()]
+      .map((series) => series.length),
+  );
+  const normalizedCheckpoints = Array.isArray(checkpoints) && checkpoints.length > 0
+    ? checkpoints.map((checkpoint) => ({
+      index: Number(checkpoint.index),
+      pendingApplications: Number(checkpoint.pendingApplications),
+      relation: checkpoint.relation ?? "exact",
+      weight: Math.max(EPSILON, Number(checkpoint.weight ?? 1)),
+      label: checkpoint.label ?? "",
+    }))
+    : [{
+      index: Number(checkpointIndex),
+      pendingApplications: Number(pendingApplications),
+      relation: "exact",
+      weight: 1,
+      label: "",
+    }];
+  const primaryCheckpoint = [...normalizedCheckpoints]
+    .reverse()
+    .find((checkpoint) => checkpoint.relation === "exact")
+    ?? normalizedCheckpoints.at(-1);
+  const latestCheckpointIndex = Math.max(
+    0,
+    ...normalizedCheckpoints.map((checkpoint) => checkpoint.index),
+  );
+  const constraintEnd = constraintsThroughIndex === undefined
+    ? seriesLength
+    : Number(constraintsThroughIndex);
+
+  for (const checkpoint of normalizedCheckpoints) {
+    if (
+      !Number.isInteger(checkpoint.index)
+      || checkpoint.index < 0
+      || checkpoint.index > seriesLength
+    ) {
+      throw new Error("Backlog checkpoint index is outside the nationality series.");
+    }
+    if (
+      !Number.isFinite(checkpoint.pendingApplications)
+      || checkpoint.pendingApplications < 0
+    ) {
+      throw new Error("Backlog checkpoint pending applications must be non-negative.");
+    }
+    if (!["exact", "approximate", "minimum"].includes(checkpoint.relation)) {
+      throw new Error(`Unsupported backlog checkpoint relation ${checkpoint.relation}.`);
+    }
+  }
+  if (
+    !Number.isInteger(constraintEnd)
+    || constraintEnd < latestCheckpointIndex
+    || constraintEnd > seriesLength
+  ) {
+    throw new Error("Backlog constraint horizon must include the checkpoint and remain inside the series.");
+  }
+  if (
+    nationalityIds.length === 0
+    && normalizedCheckpoints.some(
+      (checkpoint) => checkpoint.pendingApplications > EPSILON,
+    )
+  ) {
+    throw new Error("Cannot allocate a positive checkpoint without nationality series.");
+  }
+
+  const rows = nationalityIds.map((id) => {
+    const applications = applicationSeries.get(id) ?? Array(seriesLength).fill(0);
+    const decisions = decisionSeries.get(id) ?? Array(seriesLength).fill(0);
+    let cumulativeNet = 0;
+    let minimumCumulativeNet = 0;
+    const checkpointNets = new Map(normalizedCheckpoints.map(
+      (checkpoint) => [checkpoint.index, 0],
+    ));
+
+    for (let index = 0; index < constraintEnd; index += 1) {
+      cumulativeNet += Number(applications[index] || 0)
+        - Number(decisions[index] || 0);
+      minimumCumulativeNet = Math.min(minimumCumulativeNet, cumulativeNet);
+      if (checkpointNets.has(index + 1)) {
+        checkpointNets.set(index + 1, cumulativeNet);
+      }
+    }
+
+    return {
+      id,
+      applications,
+      decisions,
+      checkpointNets,
+      minimumInitialBacklog: -minimumCumulativeNet,
+      seedWeight: Math.max(0, Number(seedWeights.get(id) || 0)),
+    };
+  });
+  const checkpointConstraints = normalizedCheckpoints.map((checkpoint) => {
+    const checkpointNet = sum(rows.map(
+      (row) => row.checkpointNets.get(checkpoint.index) ?? 0,
+    ));
+    return {
+      ...checkpoint,
+      checkpointNet,
+      impliedInitialBacklog: checkpoint.pendingApplications - checkpointNet,
+    };
+  });
+  const minimumRequiredInitialBacklog = sum(
+    rows.map((row) => row.minimumInitialBacklog),
+  );
+  const exactConstraints = checkpointConstraints.filter(
+    (checkpoint) => checkpoint.relation === "exact",
+  );
+  const approximateConstraints = checkpointConstraints.filter(
+    (checkpoint) => checkpoint.relation === "approximate",
+  );
+  const checkpointMinimumInitialBacklog = Math.max(
+    0,
+    ...checkpointConstraints
+      .filter((checkpoint) => checkpoint.relation === "minimum")
+      .map((checkpoint) => checkpoint.impliedInitialBacklog),
+  );
+  let requiredInitialBacklog;
+
+  if (exactConstraints.length > 0) {
+    requiredInitialBacklog = exactConstraints[0].impliedInitialBacklog;
+    for (const checkpoint of exactConstraints.slice(1)) {
+      if (
+        Math.abs(checkpoint.impliedInitialBacklog - requiredInitialBacklog)
+        > 1e-6
+      ) {
+        throw new Error("Exact backlog checkpoints imply inconsistent opening stocks.");
+      }
+    }
+  } else if (approximateConstraints.length > 0) {
+    const totalWeight = sum(approximateConstraints.map(
+      (checkpoint) => checkpoint.weight,
+    ));
+    requiredInitialBacklog = sum(approximateConstraints.map(
+      (checkpoint) => checkpoint.impliedInitialBacklog * checkpoint.weight,
+    )) / totalWeight;
+  } else {
+    requiredInitialBacklog = Math.max(
+      minimumRequiredInitialBacklog,
+      checkpointMinimumInitialBacklog,
+    );
+  }
+  const hardMinimumInitialBacklog = Math.max(
+    minimumRequiredInitialBacklog,
+    checkpointMinimumInitialBacklog,
+  );
+  if (exactConstraints.length === 0) {
+    requiredInitialBacklog = Math.max(
+      requiredInitialBacklog,
+      hardMinimumInitialBacklog,
+    );
+  }
+
+  if (requiredInitialBacklog < -EPSILON) {
+    throw new Error(
+      `Checkpoint implies a negative opening backlog (${requiredInitialBacklog}).`,
+    );
+  }
+  if (hardMinimumInitialBacklog > requiredInitialBacklog + EPSILON) {
+    throw new Error(
+      `Nationality-preserving constraints require ${hardMinimumInitialBacklog} opening cases, but the checkpoint permits only ${requiredInitialBacklog}.`,
+    );
+  }
+
+  const initialBacklogs = new Map(rows.map((row) => [
+    row.id,
+    row.minimumInitialBacklog,
+  ]));
+  const slack = Math.max(
+    0,
+    requiredInitialBacklog - minimumRequiredInitialBacklog,
+  );
+  let active = rows.filter((row) => row.seedWeight > EPSILON);
+  const fixed = new Set(rows
+    .filter((row) => row.seedWeight <= EPSILON)
+    .map((row) => row.id));
+
+  while (active.length > 0) {
+    const fixedTotal = rows
+      .filter((row) => fixed.has(row.id))
+      .reduce((total, row) => total + row.minimumInitialBacklog, 0);
+    const activeWeight = sum(active.map((row) => row.seedWeight));
+    const scale = activeWeight > 0
+      ? (requiredInitialBacklog - fixedTotal) / activeWeight
+      : 0;
+    const newlyFixed = active.filter(
+      (row) => scale * row.seedWeight < row.minimumInitialBacklog - EPSILON,
+    );
+
+    if (newlyFixed.length === 0) {
+      for (const row of active) {
+        initialBacklogs.set(row.id, scale * row.seedWeight);
+      }
+      break;
+    }
+    for (const row of newlyFixed) fixed.add(row.id);
+    active = active.filter((row) => !fixed.has(row.id));
+  }
+
+  if (active.length === 0 && slack > EPSILON) {
+    const recipients = rows.length > 0 ? rows : [];
+    for (const row of recipients) {
+      initialBacklogs.set(
+        row.id,
+        initialBacklogs.get(row.id) + slack / recipients.length,
+      );
+    }
+  }
+
+  const minimumBacklogs = new Map();
+  const checkpointBacklogs = new Map();
+  let reconstructedCheckpoint = 0;
+  let minimumBacklog = Infinity;
+
+  for (const row of rows) {
+    const initialBacklog = initialBacklogs.get(row.id) ?? 0;
+    let backlog = initialBacklog;
+    let nationalityMinimum = backlog;
+    let checkpointBacklog = primaryCheckpoint.index === 0 ? backlog : null;
+
+    for (let index = 0; index < constraintEnd; index += 1) {
+      backlog += Number(row.applications[index] || 0)
+        - Number(row.decisions[index] || 0);
+      nationalityMinimum = Math.min(nationalityMinimum, backlog);
+      if (index + 1 === primaryCheckpoint.index) checkpointBacklog = backlog;
+    }
+    minimumBacklogs.set(row.id, nationalityMinimum);
+    checkpointBacklogs.set(row.id, checkpointBacklog ?? initialBacklog);
+    reconstructedCheckpoint += checkpointBacklog ?? initialBacklog;
+    minimumBacklog = Math.min(minimumBacklog, nationalityMinimum);
+  }
+
+  if (minimumBacklog < -EPSILON) {
+    throw new Error(`Nationality backlog constraint violated by ${minimumBacklog}.`);
+  }
+  const checkpointResults = checkpointConstraints.map((checkpoint) => {
+    const reconstructed = requiredInitialBacklog + checkpoint.checkpointNet;
+    const residual = reconstructed - checkpoint.pendingApplications;
+    const satisfied = checkpoint.relation === "exact"
+      ? Math.abs(residual) <= 1e-6
+      : checkpoint.relation === "minimum"
+        ? residual >= -1e-6
+        : null;
+    if (satisfied === false) {
+      throw new Error(
+        `Backlog checkpoint ${checkpoint.label || checkpoint.index} is not satisfied.`,
+      );
+    }
+    return {
+      index: checkpoint.index,
+      label: checkpoint.label,
+      relation: checkpoint.relation,
+      pendingApplications: checkpoint.pendingApplications,
+      checkpointNet: checkpoint.checkpointNet,
+      impliedInitialBacklog: checkpoint.impliedInitialBacklog,
+      reconstructed,
+      residual,
+      relativeResidual: checkpoint.pendingApplications > 0
+        ? residual / checkpoint.pendingApplications
+        : 0,
+      satisfied,
+    };
+  });
+  const primaryResult = checkpointResults.find((checkpoint) => (
+    checkpoint.index === primaryCheckpoint.index
+    && checkpoint.relation === primaryCheckpoint.relation
+  ));
+  if (
+    primaryCheckpoint.relation === "exact"
+    && Math.abs(
+      reconstructedCheckpoint - primaryCheckpoint.pendingApplications,
+    ) > 1e-6
+  ) {
+    throw new Error("Primary exact backlog checkpoint is not satisfied.");
+  }
+
+  return {
+    initialBacklogs,
+    minimumInitialBacklogs: new Map(rows.map((row) => [
+      row.id,
+      row.minimumInitialBacklog,
+    ])),
+    checkpointBacklogs,
+    minimumBacklogs,
+    requiredInitialBacklog,
+    minimumRequiredInitialBacklog,
+    discretionaryInitialBacklog: slack,
+    checkpointMinimumInitialBacklog,
+    hardMinimumInitialBacklog,
+    checkpointNet: primaryResult?.checkpointNet ?? 0,
+    reconstructedCheckpoint,
+    checkpointResults,
+    minimumBacklog: minimumBacklog === Infinity ? 0 : minimumBacklog,
+    bindingNationalityCount: rows.filter((row) => (
+      Math.abs(
+        (initialBacklogs.get(row.id) ?? 0) - row.minimumInitialBacklog,
+      ) <= 1e-6
+    )).length,
+  };
 }
 
 function allocateToCohort(cohort, amount, monthIndex, observedMonthCount) {
@@ -401,6 +671,7 @@ function allocateByAge(activeCohorts, capacity, monthIndex, observedMonthCount, 
 export function simulateSoftFifoCohorts({
   applications,
   observedCapacity,
+  initialBacklog = 0,
   targetIndexes,
   futureCapacityAt,
   futureApplicationsAt,
@@ -411,7 +682,18 @@ export function simulateSoftFifoCohorts({
   const observedMonthCount = applications.length;
   const trackedIndexes = new Set(targetIndexes);
   const trackedCohorts = new Map();
-  let activeCohorts = [];
+  const seededBacklog = Math.max(0, Number(initialBacklog || 0));
+  let activeCohorts = seededBacklog > EPSILON
+    ? [{
+      index: -1,
+      original: seededBacklog,
+      remaining: seededBacklog,
+      tracked: false,
+      processed: 0,
+      observedProcessed: 0,
+      weightedWait: 0,
+    }]
+    : [];
 
   for (
     let monthIndex = 0;
@@ -518,6 +800,7 @@ function confidenceFor(arrivals, observedShare, recentDecisions, reliability) {
 export function buildCohortEstimates({
   applications,
   observedCapacity,
+  initialBacklog = 0,
   targetMonths,
   capacityForecast,
   applicationForecast,
@@ -534,6 +817,7 @@ export function buildCohortEstimates({
       simulateSoftFifoCohorts({
         applications,
         observedCapacity,
+        initialBacklog,
         targetIndexes,
         futureCapacityAt: (offset) => capacityForecast(offset, variant),
         futureApplicationsAt: (offset) => applicationForecast(offset),
