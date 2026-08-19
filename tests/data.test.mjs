@@ -50,6 +50,13 @@ test("generated estimator data has the expected shape", async () => {
     data.metadata.suppressionThreshold,
     configuredSource.config.suppressionThreshold,
   );
+  assert.equal(data.metadata.modelVersion, 2);
+  assert.match(data.metadata.model, /hierarchical/i);
+  assert.match(data.metadata.nationalityModel, /partially pooled/i);
+  assert.equal(
+    data.metadata.fifoPriorityShare,
+    configuredSource.config.model.fifoPriorityShare,
+  );
   assert.deepEqual(data.months.map((month) => month.id), expectedMonthIds);
   assert.ok(Object.keys(data.nationalities).length > 0);
   assert.ok(data.paths.length > 0);
@@ -78,6 +85,26 @@ test("nationality-specific estimates use Migri citizenship labels", async () => 
   assert.equal(data.nationalities["23"], codebook.countries["23"]);
   assert.equal(data.nationalities["23"], "China");
   assert.ok(Object.keys(requested.nationalityEstimates["23"]).length > 0);
+});
+
+test("high-volume nationality estimates retain the shared category signal", async () => {
+  const data = JSON.parse(await readFile(dataUrl, "utf8"));
+  const requested = data.paths.find((item) => item.path === "21205/59/1/133");
+  const period = data.metadata.sourceThrough;
+  const globalEstimate = requested.estimates[period];
+
+  for (const nationalityId of ["22", "23", "39", "75"]) {
+    const estimate = requested.nationalityEstimates[nationalityId]?.[period];
+    assert.ok(estimate, `expected a current estimate for ${nationalityId}`);
+    assert.ok(estimate.months > 0);
+    assert.ok(estimate.lowerMonths <= estimate.months);
+    assert.ok(estimate.upperMonths >= estimate.months);
+    assert.ok(
+      estimate.months / globalEstimate.months >= 0.35
+        && estimate.months / globalEstimate.months <= 3,
+      `expected ${nationalityId} to remain bounded by the pooled model`,
+    );
+  }
 });
 
 test("the generated name config contains every estimable hierarchy path", async () => {

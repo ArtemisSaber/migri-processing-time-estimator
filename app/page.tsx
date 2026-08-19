@@ -34,6 +34,10 @@ type EstimatorData = {
     rollingWindowMonths: number;
     suppressionThreshold: number;
     model: string;
+    modelVersion: number;
+    capacityModel: string;
+    nationalityModel: string;
+    fifoPriorityShare: number;
   };
   months: Array<{ id: string; period: string }>;
   nationalities: Record<string, string>;
@@ -173,7 +177,7 @@ export default function Home() {
           <p className="eyebrow"><span /> Public data · Experimental</p>
           <h1>A clearer idea of how long you might wait.</h1>
           <p className="lede">
-            Select the taxonomy IDs for an application and its submission month.
+            Select an application type and its submission month.
             The estimator turns Migri&apos;s public statistics into a rough waiting-time range.
           </p>
         </div>
@@ -187,7 +191,7 @@ export default function Home() {
         <div className="form-panel">
           <div className="panel-heading">
             <p className="step-kicker">Your application</p>
-            <h2 id="estimator-title">Choose the application IDs</h2>
+            <h2 id="estimator-title">Choose the application type</h2>
           </div>
 
           <div className="field-stack">
@@ -228,12 +232,12 @@ export default function Home() {
                 <option value="">All nationalities</option>
                 {nationalityChoices.map((id) => (
                   <option key={id} value={id}>
-                    {data.nationalities[id] ?? `Citizenship ID ${id}`} · ID {id}
+                    {data.nationalities[id] ?? `Citizenship ${id}`}
                   </option>
                 ))}
               </select>
               <small id="nationality-note" className="nationality-note">
-                Experimental: selecting a citizenship models it as a separate FIFO queue.
+                Experimental: citizenship adjusts a shared-capacity estimate and is pooled toward the application-type baseline when data are sparse.
               </small>
             </label>
 
@@ -273,7 +277,7 @@ export default function Home() {
             <b>{selectedApplicationName || "Application selected"}</b>
           </div>
           <p className="mapping-note">
-            The complete ID tree is generated from the statistics export and populated from Migri&apos;s English codebook snapshot.
+            The complete application tree is generated from the statistics export and populated from Migri&apos;s English codebook snapshot.
           </p>
           <p className="privacy-note"><span aria-hidden="true">●</span> Groups smaller than {data.metadata.suppressionThreshold} are not estimated.</p>
         </div>
@@ -284,7 +288,7 @@ export default function Home() {
               <div className="result-topline">
                 <p>Estimated processing time</p>
                 <span className={result.observedShare >= 0.99 ? "status observed" : "status"}>
-                  {result.observedShare >= 0.99 ? "Observed" : "Model estimate"}
+                  {result.observedShare >= 0.99 ? "Observed capacity" : "Model estimate"}
                 </span>
               </div>
               <div className="result-number">
@@ -315,8 +319,8 @@ export default function Home() {
               </div>
 
               <p className="result-footnote">
-                {nationalityId ? `This view treats ${selectedNationalityName} as a separate queue; the public data does not confirm that Migri assigns work this way. ` : ""}
-                {Math.round(result.observedShare * 100)}% of this cohort&apos;s modeled processing is covered by observed decision months. The remainder uses the latest {data.metadata.rollingWindowMonths}-month average capacity.
+                {nationalityId ? `This view partially pools ${selectedNationalityName} with the application type&apos;s shared capacity; it does not assume or prove a separate citizenship queue. ` : ""}
+                {Math.round(result.observedShare * 100)}% of this cohort&apos;s modeled service occurs in months covered by published decision totals. The remainder uses a dynamic forecast based on recent, related-category, and overall throughput.
               </p>
 
               <div className="estimate-disclaimer">
@@ -344,8 +348,8 @@ export default function Home() {
           <h2>Public statistics in.<br />A useful range out.</h2>
           <ol>
             <li><span>01</span><div><b>Count incoming applications</b><p>Applications are grouped by their full taxonomy path and submission month.</p></div></li>
-            <li><span>02</span><div><b>Measure recent capacity</b><p>Future decisions use a rolling six-month capacity; three- and twelve-month windows form the range.</p></div></li>
-            <li><span>03</span><div><b>Simulate a FIFO queue</b><p>Observed decisions clear the oldest modeled applications first. Real Migri cases are not always processed strictly in order.</p></div></li>
+            <li><span>02</span><div><b>Forecast shared capacity</b><p>Recent decisions are combined with related-category and overall throughput. Citizenship effects are partially pooled so sparse data stay close to the application-type baseline.</p></div></li>
+            <li><span>03</span><div><b>Simulate an age-prioritized queue</b><p>Most capacity clears older modeled cohorts first, while a smaller age-weighted share allows for cases being handled out of strict order.</p></div></li>
           </ol>
         </div>
       </section>

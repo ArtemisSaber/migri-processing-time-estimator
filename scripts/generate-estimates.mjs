@@ -1,6 +1,11 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { basename, resolve } from "node:path";
 import { gunzipSync } from "node:zlib";
+import {
+  buildCohortEstimates,
+  buildPooledNationalityServices,
+  forecastHierarchicalCapacity,
+} from "./estimation-model.mjs";
 
 const configPath = resolve(
   process.cwd(),
@@ -20,6 +25,10 @@ const HISTORY_MONTHS = Number(config.historyMonths);
 const ROLLING_WINDOW = Number(config.rollingWindowMonths);
 const SUPPRESSION_THRESHOLD = Number(config.suppressionThreshold);
 const MAX_PROJECTION_MONTHS = Number(config.maxProjectionMonths);
+const MODEL_OPTIONS = {
+  shortWindowMonths: ROLLING_WINDOW,
+  ...config.model,
+};
 
 function parsePeriod(period) {
   const match = /^(\d{4})-(0[1-9]|1[0-2])$/.exec(period);
@@ -175,143 +184,38 @@ function countHierarchyNodes(children) {
   );
 }
 
-function mean(values) {
-  if (values.length === 0) return 0;
-  return values.reduce((total, value) => total + value, 0) / values.length;
+function addSeries(target, source) {
+  for (let index = 0; index < target.length; index += 1) {
+    target[index] += Number(source[index] || 0);
+  }
 }
 
-function rollingCapacity(decisions, window) {
-  return mean(decisions.slice(-window));
+function subtractSeries(left, right) {
+  return left.map((value, index) => Math.max(
+    0,
+    Number(value || 0) - Number(right[index] || 0),
+  ));
 }
 
-function estimateCohort({
-  cohortIndex,
-  arrivals,
-  decisions,
-  queueAhead,
-  futureCapacity,
-}) {
-  if (arrivals <= 0 || futureCapacity <= 0) return null;
-
-  const cohortStart = queueAhead;
-  const cohortEnd = queueAhead + arrivals;
-  let cumulativeCapacity = 0;
-  let processed = 0;
-  let observedProcessed = 0;
-  let weightedWait = 0;
-
-  for (let offset = 0; offset <= MAX_PROJECTION_MONTHS; offset += 1) {
-    const monthIndex = cohortIndex + offset;
-    const isObserved = monthIndex < decisions.length;
-    const capacity = isObserved ? decisions[monthIndex] : futureCapacity;
-    const capacityStart = cumulativeCapacity;
-    const capacityEnd = cumulativeCapacity + capacity;
-    const cohortProcessed = Math.max(
-      0,
-      Math.min(capacityEnd, cohortEnd) - Math.max(capacityStart, cohortStart),
-    );
-
-    if (cohortProcessed > 0) {
-      processed += cohortProcessed;
-      weightedWait += cohortProcessed * offset;
-      if (isObserved) observedProcessed += cohortProcessed;
-    }
-
-    cumulativeCapacity = capacityEnd;
-    if (processed >= arrivals - 1e-9) {
-      return {
-        months: weightedWait / arrivals,
-        observedShare: Math.min(1, observedProcessed / arrivals),
-      };
+function buildPrefixTotals(seriesByPath, length) {
+  const totals = new Map([["", Array(length).fill(0)]]);
+  for (const series of seriesByPath.values()) {
+    addSeries(totals.get(""), series.counts);
+    for (let prefixLength = 1; prefixLength < series.levels.length; prefixLength += 1) {
+      const prefix = series.levels.slice(0, prefixLength).join("/");
+      if (!totals.has(prefix)) totals.set(prefix, Array(length).fill(0));
+      addSeries(totals.get(prefix), series.counts);
     }
   }
-
-  return null;
+  return totals;
 }
 
-function floorHalf(value) {
-  return Math.floor(value * 2) / 2;
-}
-
-function ceilHalf(value) {
-  return Math.ceil(value * 2) / 2;
-}
-
-function round(value, digits = 2) {
-  const factor = 10 ** digits;
-  return Math.round((value + Number.EPSILON) * factor) / factor;
-}
-
-function confidenceFor(arrivals, observedShare, recentDecisions) {
-  if (arrivals >= 30 && observedShare >= 0.8 && recentDecisions >= 30) return "high";
-  if (arrivals >= 12 && recentDecisions >= 18) return "medium";
-  return "low";
-}
-
-function buildEstimatesByMonth(applicationCounts, decisionCounts, targetMonths) {
-  const recentDecisionTotal = decisionCounts
-    .slice(-ROLLING_WINDOW)
-    .reduce((total, count) => total + count, 0);
-  const capacities = [3, ROLLING_WINDOW, 12]
-    .map((window) => rollingCapacity(decisionCounts, window))
-    .filter((capacity) => capacity > 0);
-
-  const queueAheadByMonth = [];
-  let queue = 0;
-  for (let index = 0; index < applicationCounts.length; index += 1) {
-    queueAheadByMonth[index] = queue;
-    queue = Math.max(0, queue + applicationCounts[index] - decisionCounts[index]);
-  }
-
-  const byMonth = {};
-  for (const month of targetMonths) {
-    const arrivals = applicationCounts[month.index];
-    if (
-      arrivals < SUPPRESSION_THRESHOLD ||
-      recentDecisionTotal < SUPPRESSION_THRESHOLD ||
-      capacities.length === 0
-    ) {
-      byMonth[month.period] = null;
-      continue;
-    }
-
-    const variants = capacities
-      .map((futureCapacity) => estimateCohort({
-        cohortIndex: month.index,
-        arrivals,
-        decisions: decisionCounts,
-        queueAhead: queueAheadByMonth[month.index],
-        futureCapacity,
-      }))
-      .filter(Boolean);
-
-    const central = estimateCohort({
-      cohortIndex: month.index,
-      arrivals,
-      decisions: decisionCounts,
-      queueAhead: queueAheadByMonth[month.index],
-      futureCapacity: rollingCapacity(decisionCounts, ROLLING_WINDOW),
-    });
-
-    if (!central || variants.length === 0) {
-      byMonth[month.period] = null;
-      continue;
-    }
-
-    const variantMonths = variants.map((variant) => variant.months);
-    const lower = Math.max(0, floorHalf(Math.min(...variantMonths) - 0.5));
-    const upper = Math.max(lower + 0.5, ceilHalf(Math.max(...variantMonths) + 0.5));
-
-    byMonth[month.period] = {
-      months: round(central.months),
-      lowerMonths: lower,
-      upperMonths: upper,
-      observedShare: round(central.observedShare),
-      confidence: confidenceFor(arrivals, central.observedShare, recentDecisionTotal),
-    };
-  }
-
-  return byMonth;
+function relatedSeriesFor(series, prefixTotals) {
+  const parentPrefix = series.levels.slice(0, -1).join("/");
+  return subtractSeries(
+    prefixTotals.get(parentPrefix) ?? prefixTotals.get(""),
+    series.counts,
+  );
 }
 
 const monthIds = Object.keys(source.applications).sort((a, b) => Number(a) - Number(b));
@@ -331,6 +235,16 @@ const targetMonthIndexes = months
 
 const applicationsByPath = buildSeries(source.applications, monthIds);
 const decisionsByPath = buildSeries(source.decisions, monthIds);
+const applicationPrefixTotals = buildPrefixTotals(
+  applicationsByPath,
+  monthIds.length,
+);
+const decisionPrefixTotals = buildPrefixTotals(
+  decisionsByPath,
+  monthIds.length,
+);
+const globalApplicationCounts = applicationPrefixTotals.get("");
+const globalDecisionCounts = decisionPrefixTotals.get("");
 const officialCodebook = readOfficialCodebook(codebookPath);
 const nameHierarchy = buildNameHierarchy(
   applicationsByPath,
@@ -350,29 +264,71 @@ for (const path of paths) {
 
   const applicationCounts = application.counts;
   const decisionCounts = decision?.counts ?? Array(monthIds.length).fill(0);
-  const byMonth = buildEstimatesByMonth(
-    applicationCounts,
-    decisionCounts,
-    targetMonthIndexes,
+  const relatedApplications = relatedSeriesFor(
+    application,
+    applicationPrefixTotals,
   );
+  const relatedDecisions = decision
+    ? relatedSeriesFor(decision, decisionPrefixTotals)
+    : decisionPrefixTotals.get(
+      application.levels.slice(0, -1).join("/"),
+    ) ?? globalDecisionCounts;
+  const capacityModel = forecastHierarchicalCapacity({
+    decisions: decisionCounts,
+    relatedDecisions,
+    globalDecisions: subtractSeries(globalDecisionCounts, decisionCounts),
+    options: MODEL_OPTIONS,
+  });
+  const applicationModel = forecastHierarchicalCapacity({
+    decisions: applicationCounts,
+    relatedDecisions: relatedApplications,
+    globalDecisions: subtractSeries(globalApplicationCounts, applicationCounts),
+    options: MODEL_OPTIONS,
+  });
+  const commonEstimateOptions = {
+    targetMonths: targetMonthIndexes,
+    recentWindowMonths: ROLLING_WINDOW,
+    suppressionThreshold: SUPPRESSION_THRESHOLD,
+    maxProjectionMonths: MAX_PROJECTION_MONTHS,
+    fifoPriorityShare: MODEL_OPTIONS.fifoPriorityShare,
+    softFifoAgePower: MODEL_OPTIONS.softFifoAgePower,
+  };
+  const byMonth = buildCohortEstimates({
+    applications: applicationCounts,
+    observedCapacity: decisionCounts,
+    capacityForecast: (offset, variant) => capacityModel.valueAt(offset, variant),
+    applicationForecast: (offset) => applicationModel.valueAt(offset),
+    reliability: capacityModel.reliability,
+    ...commonEstimateOptions,
+  });
 
   if (Object.values(byMonth).every((value) => value === null)) continue;
 
   const nationalityEstimates = {};
-  const nationalityIds = new Set([
-    ...application.nationalityCounts.keys(),
-    ...(decision?.nationalityCounts.keys() ?? []),
-  ]);
-  for (const nationalityId of nationalityIds) {
+  const pooledNationalityServices = buildPooledNationalityServices({
+    applicationSeries: application.nationalityCounts,
+    decisionSeries: decision?.nationalityCounts ?? new Map(),
+    totalApplications: applicationCounts,
+    totalDecisions: decisionCounts,
+    options: MODEL_OPTIONS,
+  });
+  for (const [nationalityId, nationalityService] of pooledNationalityServices) {
     const nationalityApplications = application.nationalityCounts.get(nationalityId)
       ?? Array(monthIds.length).fill(0);
-    const nationalityDecisions = decision?.nationalityCounts.get(nationalityId)
-      ?? Array(monthIds.length).fill(0);
-    const byNationalityMonth = buildEstimatesByMonth(
-      nationalityApplications,
-      nationalityDecisions,
-      targetMonthIndexes,
-    );
+    const byNationalityMonth = buildCohortEstimates({
+      applications: nationalityApplications,
+      observedCapacity: nationalityService.counts,
+      capacityForecast: (offset, variant) => (
+        capacityModel.valueAt(offset, variant)
+        * nationalityService.shareAt(offset)
+      ),
+      applicationForecast: (offset) => (
+        applicationModel.valueAt(offset)
+        * nationalityService.latestDemandShare
+      ),
+      reliability: nationalityService.latestReliability,
+      ...commonEstimateOptions,
+    });
     const availableEntries = Object.entries(byNationalityMonth)
       .filter(([, value]) => value !== null);
 
@@ -406,7 +362,11 @@ const output = {
     historyMonths: HISTORY_MONTHS,
     rollingWindowMonths: ROLLING_WINDOW,
     suppressionThreshold: SUPPRESSION_THRESHOLD,
-    model: "FIFO cohort queue with observed decisions and rolling-capacity projection",
+    model: "Hierarchical shared-capacity soft-FIFO cohort model",
+    modelVersion: 2,
+    capacityModel: "Empirical-Bayes dynamic capacity with sibling and global throughput signals",
+    nationalityModel: "Partially pooled allocation of shared category capacity",
+    fifoPriorityShare: MODEL_OPTIONS.fifoPriorityShare,
   },
   months: targetMonthIndexes.map(({ id, period }) => ({ id, period })),
   nationalities: nationalityNames,
