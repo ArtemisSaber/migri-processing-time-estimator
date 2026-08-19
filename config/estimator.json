@@ -13,5 +13,26 @@
   "historyMonths": 24,
   "rollingWindowMonths": 6,
   "suppressionThreshold": 6,
-  "maxProjectionMonths": 240
+  "maxProjectionMonths": 240,
+  "model": {
+    "longWindowMonths": 12,
+    "volatilityWindowMonths": 24,
+    "capacityPriorDecisions": 30,
+    "relatedCapacityWeight": 0.7,
+    "sharedGrowthFloor": 0.6,
+    "sharedGrowthCeiling": 1.6,
+    "capacityMeanReversion": 0.9,
+    "capacityRangeZ": 1.28,
+    "minimumCapacityUncertainty": 0.08,
+    "maximumCapacityUncertainty": 0.4,
+    "nationalityDemandWindowMonths": 12,
+    "nationalityDemandPriorApplications": 30,
+    "nationalityPriorDecisions": 30,
+    "nationalityMaximumWeight": 0.85,
+    "nationalityAllocationFloor": 0.5,
+    "nationalityAllocationCeiling": 2,
+    "nationalityAllocationMeanReversion": 0.9,
+    "fifoPriorityShare": 0.9,
+    "softFifoAgePower": 2
+  }
 }

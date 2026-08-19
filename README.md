@@ -2,8 +2,8 @@
 
 A conventional Next.js application that estimates average processing time for
 Migri application cohorts. It synchronizes a compressed source snapshot from
-the configured S3 object, builds a compact static dataset, and presents a
-hierarchy of taxonomy IDs to the user.
+the configured S3 object, builds a compact static dataset, and presents the
+application hierarchy with English names.
 
 This is an independent, unofficial project. It is not affiliated with, endorsed
 by, commissioned by, or otherwise connected to the Finnish Immigration Service
@@ -15,9 +15,10 @@ handling of an individual case, and it does not guarantee a decision, timing,
 or outcome.
 
 Nationality is optional. Leaving it blank uses the aggregate application-type
-queue. Selecting a citizenship recalculates arrivals, decisions, and capacity
-for that citizenship as an experimental separate-queue scenario; the public
-data does not establish that Migri actually assigns work this way.
+queue. Selecting a citizenship applies an experimental, partially pooled
+allocation of the application type's shared capacity. Sparse citizenship data
+are pulled toward the application-type baseline; the public data do not
+establish that Migri maintains separate citizenship queues.
 
 ## Requirements
 
@@ -120,17 +121,26 @@ npm run generate:data
 
 ## Estimation model
 
-For every complete taxonomy path, the data generator:
+For every complete taxonomy path, the data generator uses a hierarchical,
+dynamic cohort model:
 
-1. Reconstructs the monthly queue from applications and decisions.
-2. Assigns decisions to the oldest applications first (FIFO).
-3. Uses observed decisions where available.
-4. Projects unfinished cohorts with the latest six-month average capacity.
-5. Uses three- and twelve-month capacities to form a rough range.
+1. The path's recent decision rate is partially pooled with the throughput
+   movement in its closest sibling paths and the rest of the dataset.
+2. An empirical-Bayes capacity forecast mean-reverts toward that shared service
+   regime. Recent volatility and sampling uncertainty produce the range.
+3. Published monthly decisions service modeled application cohorts. Ninety
+   percent of capacity is assigned oldest-first; the remainder uses an
+   age-weighted hazard so the model does not claim strict real-world FIFO.
+4. Future arrivals are included because out-of-order processing lets newer
+   cohorts consume some future capacity.
+5. Nationality decision shares are compared with nationality demand shares and
+   partially pooled. High-volume citizenships can depart from the category
+   baseline, while small samples fall back toward it.
 
-When a nationality is selected, the same calculation is run using only that
-citizenship's monthly applications and decisions within the selected taxonomy
-path.
+This structure preserves a category-wide capacity shock across every
+citizenship instead of forecasting each citizenship as a completely isolated
+queue. The model parameters—including pooling strength, allocation bounds, and
+soft-FIFO share—are explicit in `config/estimator.json`.
 
 The S3 URL, cache location, number of selectable submission cohorts, and month-ID
 anchor are set in `config/estimator.json`. The first and last selectable months
