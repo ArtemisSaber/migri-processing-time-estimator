@@ -219,6 +219,51 @@
     "capacityRangeZ": 1.28,
     "minimumCapacityUncertainty": 0.08,
     "maximumCapacityUncertainty": 0.4,
+    "dynamicNationalityShare": {
+      "paths": [
+        "21205/59/1/133"
+      ],
+      "decisionWeight": 0.6,
+      "applicationPersistence": 0.7,
+      "correctionPersistence": 0,
+      "calibrationHalfLifeMonths": 0.5,
+      "calibratedEnsembleWeight": 0.9,
+      "dirichletApplicationWindowMonths": 1,
+      "dirichletDemandPull": 0.3,
+      "dirichletConcentration": 300,
+      "components": [
+        {
+          "decisionHalfLifeMonths": 3,
+          "applicationWindowMonths": 2,
+          "calibrationPriorDecisions": 30,
+          "correctionPower": 0.5
+        },
+        {
+          "decisionHalfLifeMonths": 3,
+          "applicationWindowMonths": 2,
+          "calibrationPriorDecisions": 100,
+          "correctionPower": 1
+        },
+        {
+          "decisionHalfLifeMonths": 3,
+          "applicationWindowMonths": 2,
+          "calibrationPriorDecisions": 30,
+          "correctionPower": 0.75
+        },
+        {
+          "decisionHalfLifeMonths": 4,
+          "applicationWindowMonths": 1,
+          "calibrationPriorDecisions": 100,
+          "correctionPower": 1
+        },
+        {
+          "decisionHalfLifeMonths": 4,
+          "applicationWindowMonths": 1,
+          "calibrationPriorDecisions": 30,
+          "correctionPower": 0.5
+        }
+      ]
+    },
     "fifoPriorityShare": 0.9,
     "softFifoAgePower": 2
   }

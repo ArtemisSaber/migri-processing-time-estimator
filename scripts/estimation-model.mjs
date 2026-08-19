@@ -279,6 +279,340 @@ export function forecastNationalityCapacityShares({
   };
 }
 
+function nationalityIdsFor(applicationSeries, decisionSeries) {
+  return [...new Set([
+    ...applicationSeries.keys(),
+    ...decisionSeries.keys(),
+  ])].sort((left, right) => left.localeCompare(right, undefined, {
+    numeric: true,
+  }));
+}
+
+function normalizeNationalityValues(ids, values) {
+  const nonnegative = ids.map((id) => Math.max(0, Number(values.get(id) || 0)));
+  const total = sum(nonnegative);
+  return new Map(ids.map((id, index) => [
+    id,
+    total > 0 ? nonnegative[index] / total : 1 / ids.length,
+  ]));
+}
+
+function blendNationalityShares(ids, left, right, leftWeight) {
+  return new Map(ids.map((id) => [
+    id,
+    leftWeight * Number(left.get(id) || 0)
+      + (1 - leftWeight) * Number(right.get(id) || 0),
+  ]));
+}
+
+function windowNationalityShares({ ids, series, endIndex, window }) {
+  return normalizeNationalityValues(ids, new Map(ids.map((id) => [
+    id,
+    windowSum(series.get(id) ?? [], endIndex, window),
+  ])));
+}
+
+function ewmaMonthlyNationalityShares({ ids, series, endIndex, halfLife }) {
+  const volumes = new Map(ids.map((id) => [id, 0]));
+  const lookback = Math.min(
+    endIndex + 1,
+    Math.max(1, Math.ceil(halfLife * 10)),
+  );
+  for (let age = 0; age < lookback; age += 1) {
+    const index = endIndex - age;
+    const monthTotal = sum(ids.map(
+      (id) => Number(series.get(id)?.[index] || 0),
+    ));
+    if (monthTotal <= 0) continue;
+    const weight = 0.5 ** (age / halfLife);
+    for (const id of ids) {
+      volumes.set(
+        id,
+        Number(volumes.get(id) || 0)
+          + weight * Number(series.get(id)?.[index] || 0) / monthTotal,
+      );
+    }
+  }
+  return normalizeNationalityValues(ids, volumes);
+}
+
+function calibratedNationalityComponent({
+  ids,
+  applicationSeries,
+  decisionSeries,
+  endIndex,
+  settings,
+  component,
+}) {
+  const serviceShares = ewmaMonthlyNationalityShares({
+    ids,
+    series: decisionSeries,
+    endIndex,
+    halfLife: component.decisionHalfLifeMonths,
+  });
+  const demandShares = windowNationalityShares({
+    ids,
+    series: applicationSeries,
+    endIndex,
+    window: component.applicationWindowMonths,
+  });
+  const observed = new Map(ids.map((id) => [id, 0]));
+  const expected = new Map(ids.map((id) => [id, 0]));
+  const calibrationLookback = Math.min(
+    endIndex + 1,
+    Math.max(1, Math.ceil(settings.calibrationHalfLifeMonths * 10)),
+  );
+
+  for (let age = 0; age < calibrationLookback; age += 1) {
+    const index = endIndex - age;
+    if (index <= 0) continue;
+    const historicalService = ewmaMonthlyNationalityShares({
+      ids,
+      series: decisionSeries,
+      endIndex: index - 1,
+      halfLife: component.decisionHalfLifeMonths,
+    });
+    const historicalDemand = windowNationalityShares({
+      ids,
+      series: applicationSeries,
+      endIndex: index - 1,
+      window: component.applicationWindowMonths,
+    });
+    const historicalBase = blendNationalityShares(
+      ids,
+      historicalService,
+      historicalDemand,
+      settings.decisionWeight,
+    );
+    const decisionTotal = sum(ids.map(
+      (id) => Number(decisionSeries.get(id)?.[index] || 0),
+    ));
+    const weight = 0.5 ** (age / settings.calibrationHalfLifeMonths);
+    for (const id of ids) {
+      observed.set(
+        id,
+        Number(observed.get(id) || 0)
+          + weight * Number(decisionSeries.get(id)?.[index] || 0),
+      );
+      expected.set(
+        id,
+        Number(expected.get(id) || 0)
+          + weight * decisionTotal * Number(historicalBase.get(id) || 0),
+      );
+    }
+  }
+
+  return {
+    component,
+    demandShares,
+    serviceShares,
+    correctionRatios: new Map(ids.map((id) => [
+      id,
+      (Number(observed.get(id) || 0) + component.calibrationPriorDecisions)
+        / (Number(expected.get(id) || 0) + component.calibrationPriorDecisions),
+    ])),
+  };
+}
+
+function dirichletNationalityState({
+  ids,
+  applicationSeries,
+  decisionSeries,
+  endIndex,
+  settings,
+}) {
+  let state = windowNationalityShares({
+    ids,
+    series: applicationSeries,
+    endIndex: 0,
+    window: settings.dirichletApplicationWindowMonths,
+  });
+  for (let index = 1; index <= endIndex; index += 1) {
+    const demand = windowNationalityShares({
+      ids,
+      series: applicationSeries,
+      endIndex: index - 1,
+      window: settings.dirichletApplicationWindowMonths,
+    });
+    const prior = blendNationalityShares(
+      ids,
+      state,
+      demand,
+      1 - settings.dirichletDemandPull,
+    );
+    state = normalizeNationalityValues(ids, new Map(ids.map((id) => [
+      id,
+      settings.dirichletConcentration * Number(prior.get(id) || 0)
+        + Number(decisionSeries.get(id)?.[index] || 0),
+    ])));
+  }
+  return state;
+}
+
+/**
+ * Dynamic compositional allocator fitted for short-horizon nationality shares.
+ * Several smoothed service/demand components are bias-corrected for the first
+ * projected month, averaged, and then rapidly reverted toward long-run demand.
+ * A low-weight recursive Dirichlet state reduces parameter-selection noise.
+ */
+export function forecastDynamicNationalityCapacityShares({
+  applicationSeries,
+  decisionSeries,
+  throughIndex,
+  options,
+}) {
+  const ids = nationalityIdsFor(applicationSeries, decisionSeries);
+  const seriesLength = Math.max(
+    0,
+    ...[...applicationSeries.values(), ...decisionSeries.values()]
+      .map((series) => series.length),
+  );
+  const endIndex = throughIndex === undefined
+    ? seriesLength - 1
+    : Number(throughIndex);
+  const settings = options.dynamicNationalityShare;
+  if (!settings || !Array.isArray(settings.components)) {
+    throw new Error("Dynamic nationality-share settings are required.");
+  }
+  if (ids.length === 0) {
+    return {
+      centralShares: new Map(),
+      demandShares: new Map(),
+      serviceShares: new Map(),
+      reliabilities: new Map(),
+      shareAt: () => 0,
+    };
+  }
+
+  const longDemand = windowNationalityShares({
+    ids,
+    series: applicationSeries,
+    endIndex,
+    window: options.longWindowMonths,
+  });
+  const latestDemand = windowNationalityShares({
+    ids,
+    series: applicationSeries,
+    endIndex,
+    window: settings.dirichletApplicationWindowMonths,
+  });
+  const components = settings.components.map((component) => (
+    calibratedNationalityComponent({
+      ids,
+      applicationSeries,
+      decisionSeries,
+      endIndex,
+      settings,
+      component,
+    })
+  ));
+  let dirichletState = dirichletNationalityState({
+    ids,
+    applicationSeries,
+    decisionSeries,
+    endIndex,
+    settings,
+  });
+  const projectedShares = [];
+
+  function ensureProjection(offset) {
+    while (projectedShares.length <= offset) {
+      const horizon = projectedShares.length;
+      const demandPersistence = settings.applicationPersistence ** horizon;
+      const correctionPersistence = horizon === 0
+        ? 1
+        : settings.correctionPersistence ** horizon;
+      const calibratedShares = components.map((state) => {
+        const demand = blendNationalityShares(
+          ids,
+          state.demandShares,
+          longDemand,
+          demandPersistence,
+        );
+        const base = blendNationalityShares(
+          ids,
+          state.serviceShares,
+          demand,
+          settings.decisionWeight,
+        );
+        return normalizeNationalityValues(ids, new Map(ids.map((id) => [
+          id,
+          Number(base.get(id) || 0) * Number(
+            state.correctionRatios.get(id) || 1,
+          ) ** (state.component.correctionPower * correctionPersistence),
+        ])));
+      });
+      const calibratedAverage = normalizeNationalityValues(ids, new Map(
+        ids.map((id) => [
+          id,
+          mean(calibratedShares.map((shares) => Number(shares.get(id) || 0))),
+        ]),
+      ));
+      const dirichletDemand = blendNationalityShares(
+        ids,
+        latestDemand,
+        longDemand,
+        demandPersistence,
+      );
+      const dirichletPrediction = blendNationalityShares(
+        ids,
+        dirichletState,
+        dirichletDemand,
+        1 - settings.dirichletDemandPull,
+      );
+      const prediction = normalizeNationalityValues(ids, blendNationalityShares(
+        ids,
+        calibratedAverage,
+        dirichletPrediction,
+        settings.calibratedEnsembleWeight,
+      ));
+      projectedShares.push(prediction);
+
+      for (const state of components) {
+        const servicePersistence = 0.5
+          ** (1 / state.component.decisionHalfLifeMonths);
+        state.serviceShares = blendNationalityShares(
+          ids,
+          state.serviceShares,
+          prediction,
+          servicePersistence,
+        );
+      }
+      dirichletState = dirichletPrediction;
+    }
+  }
+
+  ensureProjection(0);
+  const centralShares = projectedShares[0];
+  const serviceShares = normalizeNationalityValues(ids, new Map(ids.map((id) => [
+    id,
+    mean(components.map((state) => Number(state.serviceShares.get(id) || 0))),
+  ])));
+  const reliabilities = new Map(ids.map((id) => {
+    const recentDecisions = windowSum(
+      decisionSeries.get(id) ?? [],
+      endIndex,
+      options.shortWindowMonths,
+    );
+    return [
+      id,
+      recentDecisions / (recentDecisions + options.capacityPriorDecisions),
+    ];
+  }));
+
+  return {
+    centralShares,
+    demandShares: longDemand,
+    serviceShares,
+    reliabilities,
+    shareAt(id, offset) {
+      const horizon = Math.max(0, Math.floor(Number(offset) || 0));
+      ensureProjection(horizon);
+      return Math.max(0, Number(projectedShares[horizon].get(id) || 0));
+    },
+  };
+}
+
 /**
  * Reconstructs opening inventory for a multi-class queue whose case identity
  * is preserved. Each nationality has its own stock equation; shared capacity

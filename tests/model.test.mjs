@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { gunzipSync } from "node:zlib";
 import {
+  forecastDynamicNationalityCapacityShares,
   forecastHierarchicalCapacity,
   forecastNationalityCapacityShares,
   reconstructNationalityBacklogs,
@@ -68,6 +69,50 @@ test("nationality capacity shares divide one service pool", () => {
   assert.ok(
     shares.shareAt("russia", 120)
       < shares.shareAt("russia", 0),
+  );
+});
+
+test("dynamic nationality shares are normalized and ignore future observations", () => {
+  const applicationSeries = new Map([
+    ["russia", [30, 30, 30, 30, 30, 30, 45, 45, 45, 45, 45, 45, 999]],
+    ["india", [70, 70, 70, 70, 70, 70, 55, 55, 55, 55, 55, 55, 0]],
+  ]);
+  const decisionSeries = new Map([
+    ["russia", [20, 20, 20, 20, 20, 20, 35, 35, 35, 35, 35, 35, 999]],
+    ["india", [80, 80, 80, 80, 80, 80, 65, 65, 65, 65, 65, 65, 0]],
+  ]);
+  const model = forecastDynamicNationalityCapacityShares({
+    applicationSeries,
+    decisionSeries,
+    throughIndex: 11,
+    options,
+  });
+  const truncated = forecastDynamicNationalityCapacityShares({
+    applicationSeries: new Map([...applicationSeries].map(([id, values]) => [
+      id,
+      values.slice(0, 12),
+    ])),
+    decisionSeries: new Map([...decisionSeries].map(([id, values]) => [
+      id,
+      values.slice(0, 12),
+    ])),
+    options,
+  });
+
+  for (const offset of [0, 1, 6, 24]) {
+    const total = model.shareAt("russia", offset)
+      + model.shareAt("india", offset);
+    assert.ok(Math.abs(total - 1) < 1e-9);
+    assert.ok(model.shareAt("russia", offset) >= 0);
+    assert.ok(model.shareAt("india", offset) >= 0);
+  }
+  assert.ok(
+    Math.abs(model.shareAt("russia", 0) - truncated.shareAt("russia", 0))
+      < 1e-12,
+  );
+  assert.ok(
+    Math.abs(model.shareAt("russia", 12) - truncated.shareAt("russia", 12))
+      < 1e-12,
   );
 });
 
@@ -205,6 +250,76 @@ test("soft FIFO services pre-existing backlog before observed cohorts", () => {
   assert.ok(withSeed);
   assert.ok(withSeed.months > withoutSeed.months);
   assert.ok(withSeed.observedShare < withoutSeed.observedShare);
+});
+
+test("dynamic spouse shares improve the frozen 2022-2026 holdout", async () => {
+  const compressed = await readFile(new URL(
+    "../data/source/migri-statistics.json.gz",
+    import.meta.url,
+  ));
+  const source = JSON.parse(gunzipSync(compressed).toString("utf8"));
+  const monthIds = Object.keys(source.decisions)
+    .sort((left, right) => Number(left) - Number(right));
+  const path = ["21205", "59", "1", "133"];
+
+  function nodeAt(section, monthId) {
+    let node = section[monthId];
+    for (const id of path) node = node.children[id];
+    return node;
+  }
+
+  function countrySeries(section) {
+    const result = new Map();
+    monthIds.forEach((monthId, index) => {
+      for (const [id, item] of Object.entries(
+        nodeAt(section, monthId).nationalities ?? {},
+      )) {
+        if (!result.has(id)) result.set(id, Array(monthIds.length).fill(0));
+        result.get(id)[index] = Number(item?.count ?? 0);
+      }
+    });
+    return result;
+  }
+
+  const applications = countrySeries(source.applications);
+  const decisions = countrySeries(source.decisions);
+  const ids = [...new Set([...applications.keys(), ...decisions.keys()])];
+  const [anchorYear, anchorMonth] = config.monthMapping.anchorPeriod
+    .split("-").map(Number);
+  const evaluationMonthId = Number(config.monthMapping.anchorId)
+    + (2022 - anchorYear) * 12 + (1 - anchorMonth);
+  const evaluationStart = monthIds.indexOf(String(evaluationMonthId));
+  let currentError = 0;
+  let dynamicError = 0;
+  let months = 0;
+
+  for (let index = evaluationStart; index < monthIds.length; index += 1) {
+    const actualTotal = ids.reduce((total, id) => (
+      total + Number(decisions.get(id)?.[index] || 0)
+    ), 0);
+    if (actualTotal <= 0) continue;
+    const current = forecastNationalityCapacityShares({
+      applicationSeries: applications,
+      decisionSeries: decisions,
+      throughIndex: index - 1,
+      options,
+    });
+    const dynamic = forecastDynamicNationalityCapacityShares({
+      applicationSeries: applications,
+      decisionSeries: decisions,
+      throughIndex: index - 1,
+      options,
+    });
+    for (const id of ids) {
+      const actualShare = Number(decisions.get(id)?.[index] || 0) / actualTotal;
+      currentError += Math.abs(current.shareAt(id, 0) - actualShare) / 2;
+      dynamicError += Math.abs(dynamic.shareAt(id, 0) - actualShare) / 2;
+    }
+    months += 1;
+  }
+
+  assert.equal(months, 55);
+  assert.ok(dynamicError / months < currentError / months * 0.85);
 });
 
 test("hierarchical capacity remains competitive in rolling-origin backtesting", async () => {

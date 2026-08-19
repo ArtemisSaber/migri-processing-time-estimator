@@ -61,8 +61,12 @@ test("generated estimator data has the expected shape", async () => {
     data.metadata.suppressionThreshold,
     configuredSource.config.suppressionThreshold,
   );
-  assert.equal(data.metadata.modelVersion, 5);
+  assert.equal(data.metadata.modelVersion, 6);
   assert.match(data.metadata.model, /hierarchical/i);
+  assert.match(data.metadata.nationalityShareModel, /dynamic compositional/i);
+  assert.deepEqual(data.metadata.dynamicNationalitySharePaths, [
+    "21205/59/1/133",
+  ]);
   assert.match(data.metadata.initialBacklogModel, /published-checkpoint/i);
   assert.equal(
     data.metadata.externalBacklogAnchors.totalAnchors,

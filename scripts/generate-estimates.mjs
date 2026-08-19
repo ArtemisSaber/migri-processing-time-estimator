@@ -3,6 +3,7 @@ import { basename, resolve } from "node:path";
 import { gunzipSync } from "node:zlib";
 import {
   buildCohortEstimates,
+  forecastDynamicNationalityCapacityShares,
   forecastHierarchicalCapacity,
   forecastNationalityCapacityShares,
   reconstructNationalityBacklogs,
@@ -744,7 +745,12 @@ for (const path of paths) {
     decision,
     monthIds.length,
   );
-  const nationalityCapacityShares = forecastNationalityCapacityShares({
+  const dynamicNationalityPaths = MODEL_OPTIONS.dynamicNationalityShare?.paths
+    ?? [];
+  const nationalityShareForecast = dynamicNationalityPaths.includes(path)
+    ? forecastDynamicNationalityCapacityShares
+    : forecastNationalityCapacityShares;
+  const nationalityCapacityShares = nationalityShareForecast({
     applicationSeries: pathNationalityApplications,
     decisionSeries: pathNationalityDecisions,
     options: MODEL_OPTIONS,
@@ -850,7 +856,7 @@ const output = {
     rollingWindowMonths: ROLLING_WINDOW,
     suppressionThreshold: SUPPRESSION_THRESHOLD,
     model: "Nationality-preserving hierarchical shared-capacity soft-FIFO cohort model",
-    modelVersion: 5,
+    modelVersion: 6,
     capacityModel: "One hierarchical application-type capacity forecast allocated across citizenship-preserving queues",
     initialBacklogModel: "Published-checkpoint nationality stock reconstruction with non-negative monthly balances",
     backlogCalibrations: initialBacklog.metadata,
@@ -860,6 +866,9 @@ const output = {
       sourceThrough: months.at(-1).period,
     }),
     nationalityModel: "Nationality-preserving inventory; decisions never consume another citizenship's applications or backlog",
+    nationalityShareModel: "Path-scoped dynamic compositional allocation with short-horizon calibration and demand reversion",
+    dynamicNationalitySharePaths: MODEL_OPTIONS.dynamicNationalityShare?.paths
+      ?? [],
     fifoPriorityShare: MODEL_OPTIONS.fifoPriorityShare,
   },
   months: targetMonthIndexes.map(({ id, period }) => ({ id, period })),

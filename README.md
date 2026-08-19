@@ -148,8 +148,14 @@ dynamic cohort model:
    range.
 5. That one capacity forecast is allocated across citizenships. Recent
    citizenship decision shares are shrunk toward recent application shares and
-   gradually mean-revert toward demand composition. The shares always sum to
-   one, while each share can service only its own citizenship's inventory.
+   gradually mean-revert toward demand composition. For spouse-of-another-
+   foreign-national first permits (`21205/59/1/133`), a path-specific dynamic
+   compositional filter instead averages several smoothed service/demand
+   estimates, applies a strongly regularized one-month residual correction,
+   and rapidly reverts that correction and recent demand signal over longer
+   horizons. The path and fitted parameters are explicit in
+   `config/estimator.json`. The shares always sum to one, while each share can
+   service only its own citizenship's inventory.
 6. Published monthly decisions service the initialized backlog and modeled
    application cohorts. Ninety
    percent of capacity is assigned oldest-first; the remainder uses an
